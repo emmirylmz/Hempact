@@ -47,7 +47,6 @@ next-env.d.ts
 /_backup_svg_illustrations
 
 # personal working notes / drafts, not project docs — kept on disk, not shipped in the repo
-/README.md
 /READ.md
 /section2-3.md
 /tab2.md
