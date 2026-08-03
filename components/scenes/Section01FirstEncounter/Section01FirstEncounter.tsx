@@ -1,0 +1,166 @@
+"use client";
+
+import { useRef } from "react";
+import { SceneWrapper } from "@/components/scroll/SceneWrapper";
+import { useContent } from "@/lib/i18n/LocaleContext";
+import { colors } from "@/lib/theme";
+import { useReducedMotion } from "@/lib/useReducedMotion";
+import { useIsMobile } from "@/lib/useIsMobile";
+import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { useSection01Timeline } from "./useSection01Timeline";
+import { useSection01VideoScrub } from "./useSection01VideoScrub";
+import { TriToneBackground } from "./TriToneBackground";
+
+export function Section01FirstEncounter() {
+  const reducedMotion = useReducedMotion();
+  const isMobile = useIsMobile();
+  const containerRef = useRef<HTMLElement>(null);
+  const imageRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const wordRefs = useRef<HTMLSpanElement[]>([]);
+  const subheadingRef = useRef<HTMLParagraphElement>(null);
+  const scrollCueRef = useRef<HTMLDivElement>(null);
+
+  useSection01Timeline(
+    { container: containerRef, image: imageRef, words: wordRefs, subheading: subheadingRef, scrollCue: scrollCueRef },
+    reducedMotion
+  );
+  // Grows the plant as the reader scrolls, instead of just autoplaying —
+  // desktop only (see the hook for the mobile/reduced-motion fallback).
+  useSection01VideoScrub({ container: containerRef, video: videoRef }, reducedMotion, isMobile);
+  // A representative mid-tone of the hero's own light→dark green sweep
+  // (see TriToneBackground) rather than the page's usual warmLinen, so the
+  // handoff to/from neighboring sections during scroll stays green-toned
+  // instead of jumping to a warm beige. Disabled on mobile — this section's
+  // mobile rendering now lives inside MobileStageRunA (see
+  // components/scroll/MobileStage.tsx), which drives the same shared
+  // background layer itself; this desktop copy is CSS-hidden
+  // (`display:none`) on mobile, and would otherwise register a
+  // degenerate/zero-rect entry that fights the stage's own writes.
+  useSceneBackgroundFlow(containerRef, colors.mistSage, !isMobile);
+
+  const { section01 } = useContent();
+  const words = section01.heading.split(" ");
+
+  // z-[24]: descending z-index across all 12 sections (24→2, matching
+  // page.tsx's render order), well below NavBar's z-50/z-40. Sibling
+  // elements with position other than static and z-index:auto stack by
+  // DOM order, so a later section paints *over* an earlier one that's
+  // currently GSAP-pinned (position:fixed) purely because it comes later
+  // in the tree — descending z-index guarantees whichever section is
+  // currently pinned always wins that fight, instead of the next
+  // section's content bleeding over it once their boxes start to
+  // geometrically overlap on screen. See [[mobile_scroll_architecture]].
+  // hidden md:contents: this section's mobile rendering has moved into
+  // MobileStageRunA (components/scroll/MobileStage.tsx via
+  // MobileScene01.tsx) — this desktop copy stays mounted (avoids any
+  // isMobile-driven JSX branch / hydration-mismatch risk, matching
+  // lib/useIsMobile.ts's own documented invariant) but is fully removed
+  // from layout below `md:` (`display:none`) and behaves as if this
+  // wrapper didn't exist at `md:`+ (`display:contents`), so it doesn't
+  // disturb <main>'s normal flow there.
+  return (
+    <div className="hidden md:contents">
+      <SceneWrapper id="section-01-first-encounter" ref={containerRef} className="z-[24] px-6">
+        <TriToneBackground />
+
+      <div ref={imageRef} className="relative z-10 mb-8 w-full max-w-xl px-10 sm:px-6">
+        {/* Glow "echo" behind the footage — the same paleHemp→deepHemp sweep
+            as TriToneBackground, heavily blurred and scaled up well past
+            the video's own box. This is what actually sells the seam: the
+            mask below only has to fade the footage into *this* blurred
+            echo (which already shares its exact hue at every point), not
+            straight into the page, so any residual mismatch dissolves in
+            soft color rather than reading as an edge. */}
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 scale-[1.9]"
+          style={{
+            background: `linear-gradient(90deg, ${colors.paleHemp} 0%, ${colors.deepHemp} 100%)`,
+            filter: "blur(60px)",
+            opacity: 0.9,
+          }}
+          aria-hidden
+        />
+        {/* No card, border, or shadow. `closest-side` is load-bearing here,
+            not decorative — it's the only ellipse sizing that *guarantees*
+            full transparency is reached before the box's own edge, on any
+            aspect ratio. A fixed-percentage ellipse (e.g. "62% 62%", used
+            elsewhere) only reaches ~81% of its own radius at a rectangular
+            box's edge, so if its transparent stop sits any later than that
+            (it did, at 92%) the box's actual boundary is still partly
+            opaque — a visible straight edge. `closest-side` can't make that
+            mistake: by definition the ellipse touches the nearest edge at
+            100% of its own extent, so finishing the fade at 88% always
+            clears it with margin, on every screen size. */}
+        <div className="relative w-full" style={{ aspectRatio: "1280 / 720" }}>
+          {/* `<source media="...">` instead of a plain `src` — this
+              wrapper's `hidden md:contents` only removes the element from
+              *layout* below `md:`, it doesn't stop the browser's own HTML
+              parser from eagerly fetching a `src` attribute it finds in
+              the raw markup (confirmed via a real network trace: on a
+              mobile viewport, both this desktop copy's video *and*
+              MobileScene01.tsx's own copy of the same file were being
+              downloaded simultaneously — literal double bandwidth/decode
+              cost for a file that's never even visible here, a real
+              contributor to "site feels laggy on mobile"). A `<source
+              media>` query is evaluated natively by the browser against
+              the real viewport before it decides what to fetch at all —
+              no React/JS/hydration timing involved, so it correctly skips
+              fetching this file below the same `768px` this wrapper's own
+              `md:` breakpoint already uses, matching exactly whether this
+              copy is actually visible. See
+              [[mobile_unified_stage_architecture]]. */}
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            preload="auto"
+            aria-label={section01.imageAlt}
+            className="h-full w-full object-contain"
+            style={{
+              maskImage: "radial-gradient(ellipse closest-side at 50% 52%, black 70%, transparent 92%)",
+              WebkitMaskImage: "radial-gradient(ellipse closest-side at 50% 52%, black 70%, transparent 92%)",
+            }}
+          >
+            <source src="/images/hero-plant-growth.mp4" media="(min-width: 768px)" />
+          </video>
+        </div>
+      </div>
+
+      <h1
+        className="relative z-10 max-w-3xl text-center text-3xl leading-tight font-light sm:text-4xl md:text-5xl"
+        style={{ color: colors.charcoal, fontFamily: "var(--font-display)" }}
+      >
+        {words.map((word, index) => (
+          <span key={index}>
+            <span
+              ref={(el) => {
+                if (el) wordRefs.current[index] = el;
+              }}
+              className="inline-block"
+            >
+              {word}
+            </span>{" "}
+          </span>
+        ))}
+      </h1>
+
+      <p
+        ref={subheadingRef}
+        className="relative z-10 mx-auto mt-5 max-w-md text-center text-sm font-light sm:text-base"
+        style={{ color: colors.deepHemp }}
+      >
+        {section01.subheading}
+      </p>
+
+      <div
+        ref={scrollCueRef}
+        className="absolute bottom-10 left-1/2 z-10 -translate-x-1/2 text-[11px] tracking-[0.3em] uppercase"
+        style={{ color: colors.charcoal }}
+      >
+        {section01.scrollCue}
+      </div>
+      </SceneWrapper>
+    </div>
+  );
+}
