@@ -56,6 +56,7 @@ export function useSection06Timeline(
         start: "top top",
         end: "+=200%",
         pin: true,
+        anticipatePin: 1,
         scrub: 0.5,
         onUpdate: (self) => {
           const duration = videoEl.duration;

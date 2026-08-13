@@ -48,6 +48,7 @@ export function useSection12VideoScrub({ container, video }: Refs, reducedMotion
           start: "top top",
           end: "+=150%",
           pin: true,
+          anticipatePin: 1,
           scrub: 0.5,
           onUpdate: (self) => {
             const target = self.progress * duration;

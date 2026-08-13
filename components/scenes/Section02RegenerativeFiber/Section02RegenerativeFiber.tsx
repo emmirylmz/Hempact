@@ -6,6 +6,7 @@ import { colors } from "@/lib/theme";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
 import { useSection02Timeline } from "./useSection02Timeline";
 
 export function Section02RegenerativeFiber() {
@@ -19,6 +20,7 @@ export function Section02RegenerativeFiber() {
   // MobileStageRunA (MobileScene02.tsx).
   useSceneBackgroundFlow(containerRef, colors.paleHemp, !isMobile);
   useSection02Timeline({ container: containerRef, video: videoRef }, reducedMotion, isMobile);
+  const isVideoNear = useLazyVideoSource(containerRef, videoRef);
 
   const { section02 } = useContent();
 
@@ -94,7 +96,7 @@ export function Section02RegenerativeFiber() {
             className="relative w-full object-contain"
             style={{ aspectRatio: "1280 / 720" }}
           >
-            <source src="/images/section2.mp4" media="(min-width: 768px)" />
+            {isVideoNear && <source src="/images/section2.mp4" media="(min-width: 768px)" />}
           </video>
         </div>
       </div>

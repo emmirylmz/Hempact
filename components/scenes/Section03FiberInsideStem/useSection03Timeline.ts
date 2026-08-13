@@ -59,6 +59,7 @@ export function useSection03Timeline({ container, video }: Refs, reducedMotion: 
           start: "top top",
           end: "+=260%",
           pin: true,
+          anticipatePin: 1,
           scrub: 1,
           onUpdate: (self) => {
             const duration = videoEl.duration;

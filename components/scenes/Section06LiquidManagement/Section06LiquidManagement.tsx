@@ -6,6 +6,7 @@ import { colors } from "@/lib/theme";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
 import { useSection06Timeline } from "./useSection06Timeline";
 
 export function Section06LiquidManagement() {
@@ -14,6 +15,7 @@ export function Section06LiquidManagement() {
   const containerRef = useRef<HTMLElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const isVideoNear = useLazyVideoSource(containerRef, videoRef);
 
   // Disabled on mobile — see Section01FirstEncounter's own comment on
   // this pattern; this section's mobile rendering now lives inside
@@ -71,7 +73,7 @@ export function Section06LiquidManagement() {
               WebkitMaskImage: "radial-gradient(ellipse 62% 62% at 50% 50%, black 45%, transparent 92%)",
             }}
           >
-            <source src="/images/liquid-drop.mp4" media="(min-width: 768px)" />
+            {isVideoNear && <source src="/images/liquid-drop.mp4" media="(min-width: 768px)" />}
           </video>
         </div>
       </div>

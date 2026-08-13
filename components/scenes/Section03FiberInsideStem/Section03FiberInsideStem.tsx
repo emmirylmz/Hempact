@@ -6,6 +6,7 @@ import { colors } from "@/lib/theme";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
 import { useSection03Timeline } from "./useSection03Timeline";
 
 export function Section03FiberInsideStem() {
@@ -19,6 +20,7 @@ export function Section03FiberInsideStem() {
   // MobileStageRunA (MobileScene03.tsx).
   useSceneBackgroundFlow(containerRef, colors.softIvory, !isMobile);
   useSection03Timeline({ container: containerRef, video: videoRef }, reducedMotion, isMobile);
+  const isVideoNear = useLazyVideoSource(containerRef, videoRef);
 
   const { section03 } = useContent();
 
@@ -87,7 +89,7 @@ export function Section03FiberInsideStem() {
             className="relative w-full object-contain"
             style={{ aspectRatio: "1280 / 720" }}
           >
-            <source src="/images/section3.mp4" media="(min-width: 768px)" />
+            {isVideoNear && <source src="/images/section3.mp4" media="(min-width: 768px)" />}
           </video>
         </div>
       </div>

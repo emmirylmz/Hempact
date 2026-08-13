@@ -6,6 +6,7 @@ import { colors } from "@/lib/theme";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
 import { useSection05Stage, LAYER_ACCENTS } from "./useSection05Stage";
 
 export function Section05PadLayers() {
@@ -17,6 +18,7 @@ export function Section05PadLayers() {
   const videoMaskRef = useRef<HTMLDivElement>(null);
   const captionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const tickRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const isVideoNear = useLazyVideoSource(sectionRef, videoRef);
 
   // One settled resting color, same pattern every other section on the
   // site uses — the shared system (see useSceneBackgroundFlow) already
@@ -185,7 +187,7 @@ export function Section05PadLayers() {
                 aria-label={section05.imageAlt}
                 className="h-full w-full"
               >
-                <source src="/images/ped1.1.mp4" media="(min-width: 768px)" />
+                {isVideoNear && <source src="/images/ped1.1.mp4" media="(min-width: 768px)" />}
               </video>
             </div>
           </div>

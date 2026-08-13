@@ -6,6 +6,7 @@ import { colors } from "@/lib/theme";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
 import { useScrollToSection } from "@/components/scroll/SmoothScrollProvider";
 import { useSection12Timeline } from "./useSection12Timeline";
 import { useSection12VideoScrub } from "./useSection12VideoScrub";
@@ -21,6 +22,7 @@ export function Section12Closing() {
   const subheadingRef = useRef<HTMLParagraphElement>(null);
   const ctaRef = useRef<HTMLButtonElement>(null);
   const scrollToSection = useScrollToSection();
+  const isVideoNear = useLazyVideoSource(containerRef, videoRef);
 
   // Disabled on mobile — see Section01FirstEncounter's own comment on
   // this pattern; this section's mobile rendering now lives inside
@@ -95,7 +97,7 @@ export function Section12Closing() {
             filter: `drop-shadow(0 26px 30px ${colors.charcoal}30) drop-shadow(0 8px 10px ${colors.charcoal}20)`,
           }}
         >
-          <source src="/images/ss1.mp4" media="(min-width: 768px)" />
+          {isVideoNear && <source src="/images/ss1.mp4" media="(min-width: 768px)" />}
         </video>
       </div>
 

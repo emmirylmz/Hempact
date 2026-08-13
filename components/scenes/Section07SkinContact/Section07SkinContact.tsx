@@ -6,6 +6,7 @@ import { colors } from "@/lib/theme";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
 import { useSection07Timeline } from "./useSection07Timeline";
 
 export function Section07SkinContact() {
@@ -15,6 +16,7 @@ export function Section07SkinContact() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const sheenRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  const isVideoNear = useLazyVideoSource(containerRef, videoRef);
 
   // Disabled on mobile — see Section01FirstEncounter's own comment on
   // this pattern; this section's mobile rendering now lives inside
@@ -83,7 +85,7 @@ export function Section07SkinContact() {
               aria-label={section07.heading}
               className="absolute inset-0 h-full w-full object-cover"
             >
-              <source src="/images/skin-contact-weave.mp4" media="(min-width: 768px)" />
+              {isVideoNear && <source src="/images/skin-contact-weave.mp4" media="(min-width: 768px)" />}
             </video>
             <div
               ref={sheenRef}

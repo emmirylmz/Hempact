@@ -68,6 +68,7 @@ export function useSection02Timeline({ container, video }: Refs, reducedMotion: 
           // present in the footage between two faster scroll ticks.
           end: "+=420%",
           pin: true,
+          anticipatePin: 1,
           scrub: 1.3,
           onUpdate: (self) => {
             const duration = videoEl.duration;

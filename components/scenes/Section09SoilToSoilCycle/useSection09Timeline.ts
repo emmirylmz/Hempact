@@ -46,6 +46,7 @@ export function useSection09Timeline(
           start: "top top",
           end: "+=260%",
           pin: true,
+          anticipatePin: 1,
           scrub: 1,
         },
       });

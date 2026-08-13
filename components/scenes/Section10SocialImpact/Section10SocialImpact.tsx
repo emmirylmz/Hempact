@@ -6,6 +6,7 @@ import { colors } from "@/lib/theme";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
 import { useSection10Timeline } from "./useSection10Timeline";
 import { ImpactIllustration, VIDEO_RECT } from "./ImpactIllustration";
 
@@ -18,6 +19,7 @@ export function Section10SocialImpact() {
   const firstDotRef = useRef<SVGCircleElement>(null);
   const dotsRef = useRef<SVGGElement>(null);
   const linesRef = useRef<SVGGElement>(null);
+  const isVideoNear = useLazyVideoSource(containerRef, videoRef);
 
   // Disabled on mobile — see Section01FirstEncounter's own comment on
   // this pattern; this section's mobile rendering now lives inside
@@ -135,8 +137,12 @@ export function Section10SocialImpact() {
                 the fallback mp4 for its canvas chroma-key. See
                 Section01FirstEncounter.tsx's own comment on this class of
                 bug. */}
-            <source src="/images/kadinsSon.webm" type="video/webm" media="(min-width: 768px)" />
-            <source src="/images/kadinsSon-fallback.mp4" type="video/mp4" media="(min-width: 768px)" />
+            {isVideoNear && (
+              <>
+                <source src="/images/kadinsSon.webm" type="video/webm" media="(min-width: 768px)" />
+                <source src="/images/kadinsSon-fallback.mp4" type="video/mp4" media="(min-width: 768px)" />
+              </>
+            )}
           </video>
           <ImpactIllustration ref={svgRef} firstDotRef={firstDotRef} dotsRef={dotsRef} linesRef={linesRef} />
         </div>
