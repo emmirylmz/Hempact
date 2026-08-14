@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { SceneWrapper } from "@/components/scroll/SceneWrapper";
 import { useContent } from "@/lib/i18n/LocaleContext";
 import { colors } from "@/lib/theme";
@@ -17,13 +17,18 @@ export function Section01FirstEncounter() {
   const containerRef = useRef<HTMLElement>(null);
   const imageRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const wordRefs = useRef<HTMLSpanElement[]>([]);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const subheadingRef = useRef<HTMLParagraphElement>(null);
   const scrollCueRef = useRef<HTMLDivElement>(null);
+  // Gates the hero video's own `<source>` mount — see
+  // useSection01Timeline's own comment on why this waits for the entrance
+  // reveal to finish instead of loading immediately alongside it.
+  const [heroVideoReady, setHeroVideoReady] = useState(false);
 
   useSection01Timeline(
-    { container: containerRef, image: imageRef, words: wordRefs, subheading: subheadingRef, scrollCue: scrollCueRef },
-    reducedMotion
+    { container: containerRef, image: imageRef, heading: headingRef, subheading: subheadingRef, scrollCue: scrollCueRef },
+    reducedMotion,
+    () => setHeroVideoReady(true)
   );
   // Grows the plant as the reader scrolls, instead of just autoplaying —
   // desktop only (see the hook for the mobile/reduced-motion fallback).
@@ -40,7 +45,6 @@ export function Section01FirstEncounter() {
   useSceneBackgroundFlow(containerRef, colors.mistSage, !isMobile);
 
   const { section01 } = useContent();
-  const words = section01.heading.split(" ");
 
   // z-[24]: descending z-index across all 12 sections (24→2, matching
   // page.tsx's render order), well below NavBar's z-50/z-40. Sibling
@@ -122,27 +126,17 @@ export function Section01FirstEncounter() {
               WebkitMaskImage: "radial-gradient(ellipse closest-side at 50% 52%, black 70%, transparent 92%)",
             }}
           >
-            <source src="/images/hero-plant-growth.mp4" media="(min-width: 768px)" />
+            {heroVideoReady && <source src="/images/hero-plant-growth.mp4" media="(min-width: 768px)" />}
           </video>
         </div>
       </div>
 
       <h1
+        ref={headingRef}
         className="relative z-10 max-w-3xl text-center text-3xl leading-tight font-light sm:text-4xl md:text-5xl"
         style={{ color: colors.charcoal, fontFamily: "var(--font-display)" }}
       >
-        {words.map((word, index) => (
-          <span key={index}>
-            <span
-              ref={(el) => {
-                if (el) wordRefs.current[index] = el;
-              }}
-              className="inline-block"
-            >
-              {word}
-            </span>{" "}
-          </span>
-        ))}
+        {section01.heading}
       </h1>
 
       <p

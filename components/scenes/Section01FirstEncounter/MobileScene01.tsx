@@ -21,12 +21,12 @@ export function MobileScene01({ onProgressRef }: { onProgressRef: RefObject<((lo
   const containerRef = useRef<HTMLElement>(null);
   const imageRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const wordRefs = useRef<HTMLSpanElement[]>([]);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const subheadingRef = useRef<HTMLParagraphElement>(null);
   const scrollCueRef = useRef<HTMLDivElement>(null);
 
   useSection01Timeline(
-    { container: containerRef, image: imageRef, words: wordRefs, subheading: subheadingRef, scrollCue: scrollCueRef },
+    { container: containerRef, image: imageRef, heading: headingRef, subheading: subheadingRef, scrollCue: scrollCueRef },
     reducedMotion
   );
 
@@ -54,7 +54,6 @@ export function MobileScene01({ onProgressRef }: { onProgressRef: RefObject<((lo
   });
 
   const { section01 } = useContent();
-  const words = section01.heading.split(" ");
 
   return (
     <div
@@ -116,21 +115,11 @@ export function MobileScene01({ onProgressRef }: { onProgressRef: RefObject<((lo
       </div>
 
       <h1
+        ref={headingRef}
         className="relative z-10 max-w-3xl text-center text-3xl leading-tight font-light"
         style={{ color: colors.charcoal, fontFamily: "var(--font-display)" }}
       >
-        {words.map((word, index) => (
-          <span key={index}>
-            <span
-              ref={(el) => {
-                if (el) wordRefs.current[index] = el;
-              }}
-              className="inline-block"
-            >
-              {word}
-            </span>{" "}
-          </span>
-        ))}
+        {section01.heading}
       </h1>
 
       <p
