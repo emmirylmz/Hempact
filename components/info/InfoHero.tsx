@@ -1,11 +1,13 @@
 "use client";
 
 import { useRef } from "react";
-import { useGSAP } from "@gsap/react";
 import { colors } from "@/lib/theme";
-import { gsap, eases } from "@/lib/gsapConfig";
 import { useReducedMotion } from "@/lib/useReducedMotion";
-import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { preloadGsap, useLazyGsap, useLazySceneBackgroundFlow } from "@/lib/lazyGsap";
+
+// Q8-1: GSAP is loaded on demand (lib/lazyGsap.ts); the request starts as
+// soon as this first-screen module is evaluated.
+preloadGsap();
 
 export type InfoHeroData = {
   eyebrow: string;
@@ -20,11 +22,10 @@ export function InfoHero({ hero }: { hero: InfoHeroData }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const cueRef = useRef<HTMLParagraphElement>(null);
 
-  useSceneBackgroundFlow(containerRef, colors.warmLinen);
+  useLazySceneBackgroundFlow(containerRef, colors.warmLinen);
 
-  useGSAP(
-    () => {
-      if (reducedMotion) return;
+  useLazyGsap(
+    ({ gsap, eases }) => {
       gsap.set([eyebrowRef.current, headingRef.current, cueRef.current], { opacity: 0, y: 20 });
       gsap
         .timeline({ delay: 0.2 })
@@ -32,7 +33,9 @@ export function InfoHero({ hero }: { hero: InfoHeroData }) {
         .to(headingRef.current, { opacity: 1, y: 0, duration: 0.9, ease: eases.fabric }, "-=0.4")
         .to(cueRef.current, { opacity: 1, y: 0, duration: 0.6, ease: eases.fabric }, "-=0.3");
     },
-    { scope: containerRef, dependencies: [reducedMotion] }
+    containerRef,
+    [],
+    { enabled: !reducedMotion }
   );
 
   return (

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import { gsap } from "@/lib/gsapConfig";
 import { useContent } from "@/lib/i18n/LocaleContext";
 import { colors } from "@/lib/theme";
-import { primeMobileVideo, scrubVideoToProgress } from "@/lib/useMobileVideoScrub";
+import { scrubVideoToProgress } from "@/lib/useMobileVideoScrub";
+import { MOBILE_SOURCE_MEDIA, useMobileSceneMedia, useMobileScrub } from "@/lib/mobileMedia";
 import {
   LAYER_ACCENTS,
   CAPTION_TIME_WINDOWS,
@@ -13,6 +14,15 @@ import {
   layerPhase,
   smoothstep,
 } from "./useSection05Stage";
+
+// True while an ancestor (the MobileStage scene wrapper) still has an inline
+// `content-visibility: hidden`. Reads inline styles only, never layout.
+function isInHiddenScene(el: HTMLElement): boolean {
+  for (let node: HTMLElement | null = el; node; node = node.parentElement) {
+    if (node.style.contentVisibility === "hidden") return true;
+  }
+  return false;
+}
 
 // Mobile-only rendering of Section05, hosted inside MobileStageRunA (see
 // components/scroll/MobileStage.tsx). Reuses the exact same per-layer
@@ -31,40 +41,45 @@ export function MobileScene05({ onProgressRef }: { onProgressRef: RefObject<((lo
   const { section05 } = useContent();
   const layers = section05.layers;
 
-  useEffect(() => {
-    const videoEl = videoRef.current;
-    if (videoEl) primeMobileVideo(videoEl);
-  }, []);
+  // Lazy <source>/poster + deferred, sequential iOS priming: see
+  // lib/mobileMedia.ts. useMobileScrub re-runs this same handler with the
+  // last progress once a lazily attached video's metadata arrives, so the
+  // captions (keyed to the video's own time) don't wait for the next tick.
+  const media = useMobileSceneMedia("05", videoRef);
+  useMobileScrub(videoRef, onProgressRef, (videoEl, localProgress) => {
+    const duration = videoEl.duration;
+    if (!duration || Number.isNaN(duration)) return;
+    scrubVideoToProgress(videoEl, localProgress);
+    const target = localProgress * duration;
 
-  // See MobileScene01.tsx's own comment on why this is in an effect.
-  useEffect(() => {
-    onProgressRef.current = (localProgress: number) => {
-      const videoEl = videoRef.current;
-      if (!videoEl) return;
-      const duration = videoEl.duration;
-      if (!duration || Number.isNaN(duration)) return;
-      scrubVideoToProgress(videoEl, localProgress);
-      const target = localProgress * duration;
+    // QC4 Q4-2: this also runs from `loadedmetadata` (useMobileScrub), i.e.
+    // while the reader is still in S04 and this scene may still be
+    // `content-visibility: hidden` (components/scroll/MobileStage.tsx). The
+    // first gsap.set on a caption parses its transform via getComputedStyle,
+    // which forces a layout of the whole hidden subtree (~60-115 ms at 4x
+    // CPU). The scene is at opacity 0 then, so nothing visible depends on
+    // the captions yet; MobileStage reveals the scene before its fade-in
+    // and calls this handler again as soon as its progress moves.
+    if (isInHiddenScene(videoEl)) return;
 
-      captionRefs.current.forEach((caption, index) => {
-        if (!caption) return;
-        const window = CAPTION_TIME_WINDOWS[index];
-        if (!window) return;
-        const phase = layerPhase(target, window.start, window.end, CAPTION_TIME_EASE);
-        const presence = 1 - smoothstep(Math.abs(phase));
-        gsap.set(caption, { opacity: presence, y: -phase * CAPTION_DRIFT });
+    captionRefs.current.forEach((caption, index) => {
+      if (!caption) return;
+      const window = CAPTION_TIME_WINDOWS[index];
+      if (!window) return;
+      const phase = layerPhase(target, window.start, window.end, CAPTION_TIME_EASE);
+      const presence = 1 - smoothstep(Math.abs(phase));
+      gsap.set(caption, { opacity: presence, y: -phase * CAPTION_DRIFT });
 
-        // Desktop's own step-tick indicator (Section05PadLayers.tsx), ported
-        // here — mobile previously had no visible cue tying the scroll
-        // position to the story's own progress through the 4 layers, which
-        // is a big part of why the scroll-driven reveal read as disconnected
-        // from the video rather than one synced sequence.
-        const tick = tickRefs.current[index];
-        if (tick) {
-          gsap.set(tick, { opacity: 0.3 + 0.7 * presence, scaleX: 0.6 + 0.4 * presence });
-        }
-      });
-    };
+      // Desktop's own step-tick indicator (Section05PadLayers.tsx), ported
+      // here — mobile previously had no visible cue tying the scroll
+      // position to the story's own progress through the 4 layers, which
+      // is a big part of why the scroll-driven reveal read as disconnected
+      // from the video rather than one synced sequence.
+      const tick = tickRefs.current[index];
+      if (tick) {
+        gsap.set(tick, { opacity: 0.3 + 0.7 * presence, scaleX: 0.6 + 0.4 * presence });
+      }
+    });
   });
 
   return (
@@ -119,11 +134,15 @@ export function MobileScene05({ onProgressRef }: { onProgressRef: RefObject<((lo
               cross-browser bug from masking its own <video> directly (see
               [[section05_video_mask_on_video_element_bug]]), so only the
               mask's shape/stops were ported, not its placement. Ambient
-              glow + drop-shadow are unchanged (not part of "masking"). */}
+              glow is unchanged (not part of "masking"); the drop-shadow was later removed, see below. */}
           <div
             className="relative aspect-video w-[92%] overflow-hidden"
             style={{
-              filter: `drop-shadow(0 20px 36px ${colors.charcoal}18)`,
+              // `filter: drop-shadow(0 20px 36px charcoal18)` removed (Faz 2
+              // / P2, bulgu #10): CSS applies filter before mask, and this
+              // wrapper's own mask ends inside its border box, so the shadow
+              // was always masked away — verified in Chromium, with vs
+              // without: max 1/255 difference (rounding only).
               // Previous treatment (still the default-of-record until this
               // trial is confirmed) — see [[section05_mask_trial]]:
               // maskImage: "radial-gradient(ellipse closest-side at 50% 50%, black 75%, transparent 97%)",
@@ -138,11 +157,12 @@ export function MobileScene05({ onProgressRef }: { onProgressRef: RefObject<((lo
               ref={videoRef}
               muted
               playsInline
-              preload="auto"
+              preload={media.preload}
+              poster={media.poster}
               aria-label={section05.imageAlt}
               className="h-full w-full"
             >
-              <source src="/images/ped1.1.mp4" media="(max-width: 767.98px)" />
+              {media.attached && <source src={media.src} type="video/mp4" media={MOBILE_SOURCE_MEDIA} />}
             </video>
           </div>
         </div>

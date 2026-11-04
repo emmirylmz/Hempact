@@ -1,15 +1,26 @@
 "use client";
 
-import { useGSAP } from "@gsap/react";
 import type { RefObject } from "react";
 import { gsap, eases } from "@/lib/gsapConfig";
+import { useIdleGsap } from "@/lib/idleGsap";
 
+// `enabled` is false on mobile widths. There this reveal never played where
+// the reader could see it: its trigger was created before the mobile run
+// pins above it and measured without their scroll length (refresh ran in
+// creation order), so it fired thousands of px early and the reader always
+// arrived to the finished state. With refresh now in document order
+// (MobileStage `refreshPriority`) it would start playing on arrival; to keep
+// the mobile story exactly as shipped, mobile keeps the finished (server-
+// rendered) state. Pass true to get the reveal on mobile too (design call).
 export function useSection11Timeline(
   container: RefObject<HTMLElement | null>,
   cards: RefObject<(HTMLDivElement | null)[]>,
-  reducedMotion: boolean
+  reducedMotion: boolean,
+  enabled: boolean = true
 ) {
-  useGSAP(
+  // Idle-deferred (lib/idleGsap.ts): this reveal sits far below the first
+  // screen, so its setup stays out of the hydration commit.
+  useIdleGsap(
     () => {
       if (reducedMotion) return;
       const cardEls = (cards.current ?? []).filter((el): el is HTMLDivElement => Boolean(el));
@@ -29,6 +40,8 @@ export function useSection11Timeline(
         });
       });
     },
-    { scope: container, dependencies: [reducedMotion] }
+    container,
+    [reducedMotion],
+    { enabled }
   );
 }

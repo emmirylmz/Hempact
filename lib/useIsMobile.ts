@@ -2,7 +2,18 @@
 
 import { useEffect, useState } from "react";
 
-const MOBILE_QUERY = "(max-width: 768px), (pointer: coarse)";
+// Must be the exact complement of the CSS breakpoint every scene uses to
+// pick its copy (Tailwind `md:` = min-width 48rem = 768px; see the
+// `md:hidden` / `hidden md:contents` wrappers and MOBILE_SOURCE_MEDIA in
+// lib/mobileMedia.ts). The JS side decides which GSAP structure is built
+// (mobile stage pins vs desktop section pins), the CSS side decides which
+// copy is visible; any viewport where the two disagree gets neither (no
+// pins at all, page ~14k px instead of 33k). The old query also matched
+// `(pointer: coarse)` and 768px exactly: a touch screen at >= 768px (tablet,
+// phone in landscape, a touch laptop, or a resized touch-emulating window)
+// showed the desktop copy without its pins. Touch-specific behaviour
+// (no Lenis on touch screens) is decided separately in SmoothScrollProvider.
+const MOBILE_QUERY = "(max-width: 767.98px)";
 
 function computeIsMobile(): boolean {
   if (typeof window === "undefined") return false;

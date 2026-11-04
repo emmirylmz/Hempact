@@ -3,6 +3,7 @@
 import { useGSAP } from "@gsap/react";
 import type { RefObject } from "react";
 import { gsap, eases } from "@/lib/gsapConfig";
+import { syncScrubOnLoad, scrubTargetTime } from "@/lib/useLazyVideoSource";
 
 type Refs = {
   container: RefObject<HTMLElement | null>;
@@ -111,6 +112,10 @@ export function useSection10Timeline(
         .to(firstDot.current, { scale: 1, duration: 0.5, ease: eases.fabric }, 0.4)
         .to(dotEls, { opacity: 1, scale: 1, duration: 0.5, ease: eases.fabric, stagger: 0.06 }, 1)
         .to(lineEls, { strokeDashoffset: 0, duration: 1, ease: eases.water, stagger: 0.03 }, 1.8);
+
+      // QC2 O2: re-apply the current scroll position once the (lazily
+      // attached) source's metadata/data arrives — see syncScrubOnLoad.
+      return syncScrubOnLoad(videoEl, () => scrubTargetTime(videoEl, tl.scrollTrigger?.progress));
     },
     { scope: container, dependencies: [reducedMotion, isMobile] }
   );

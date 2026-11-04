@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import { useContent } from "@/lib/i18n/LocaleContext";
 import { colors } from "@/lib/theme";
-import { primeMobileVideo, scrubVideoToProgress } from "@/lib/useMobileVideoScrub";
+import { scrubVideoToProgress } from "@/lib/useMobileVideoScrub";
+import { MOBILE_SOURCE_MEDIA, useMobileSceneMedia, useMobileScrub } from "@/lib/mobileMedia";
 
 // Mobile-only rendering of Section04, hosted inside MobileStageRunA — see
 // MobileScene02.tsx's own comment, same pattern exactly. No glow-echo div
@@ -28,20 +29,12 @@ export function MobileScene04({ onProgressRef }: { onProgressRef: RefObject<((lo
   const videoRef = useRef<HTMLVideoElement>(null);
   const { section04 } = useContent();
 
-  // Priming — see MobileScene01.tsx's own comment; this was missing here.
-  useEffect(() => {
-    const videoEl = videoRef.current;
-    if (videoEl) primeMobileVideo(videoEl);
-  }, []);
-
-  // See MobileScene01.tsx's own comment on why this is in an effect.
-  useEffect(() => {
-    onProgressRef.current = (localProgress: number) => {
-      const videoEl = videoRef.current;
-      if (!videoEl) return;
-      scrubVideoToProgress(videoEl, localProgress);
-    };
-  });
+  // Lazy <source>/poster + deferred, sequential iOS priming: see
+  // lib/mobileMedia.ts. The scrub itself is the same scrubVideoToProgress
+  // call as before; useMobileScrub only re-applies the last progress once a
+  // lazily attached video's metadata arrives.
+  const media = useMobileSceneMedia("04", videoRef);
+  useMobileScrub(videoRef, onProgressRef, scrubVideoToProgress);
 
   return (
     // pt-28 + [justify-content:safe_center]: see MobileScene01.tsx's own
@@ -67,12 +60,13 @@ export function MobileScene04({ onProgressRef }: { onProgressRef: RefObject<((lo
             ref={videoRef}
             muted
             playsInline
-            preload="auto"
+            preload={media.preload}
+            poster={media.poster}
             aria-label={section04.heading}
             className="relative w-full object-contain"
             style={{ aspectRatio: "1280 / 720", borderRadius: CORNER_RADIUS }}
           >
-            <source src="/images/section4.mp4" media="(max-width: 767.98px)" />
+            {media.attached && <source src={media.src} type="video/mp4" media={MOBILE_SOURCE_MEDIA} />}
           </video>
         </div>
       </div>

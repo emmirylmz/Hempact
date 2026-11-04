@@ -43,23 +43,53 @@ type Entry = {
 };
 
 const registry = new Map<symbol, Entry>();
+// Page-order snapshot of `registry`'s values, kept sorted at registration
+// time (create/destroy) instead of re-sorting with compareDocumentPosition
+// on every scroll update (bulgu #15) — registered elements never change
+// their relative document order (a pin-spacer wraps a section in place).
+let ordered: Entry[] = [];
 const progressEase = gsap.parseEase(eases.water);
 let lastAppliedColor: string | null = null;
+let bgLayerEl: HTMLElement | null = null;
+let compositeQueued = false;
 
-function sortedEntries(): Entry[] {
-  return Array.from(registry.values()).sort((a, b) => {
-    const position = a.el.compareDocumentPosition(b.el);
-    if (position & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-    if (position & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-    return 0;
+function byDocumentOrder(a: Entry, b: Entry) {
+  const position = a.el.compareDocumentPosition(b.el);
+  if (position & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+  if (position & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+  return 0;
+}
+
+function reorder() {
+  ordered = Array.from(registry.values()).sort(byDocumentOrder);
+}
+
+function getBgLayer() {
+  // Cached, but re-looked-up after a client navigation remounts the layer.
+  if (!bgLayerEl || !bgLayerEl.isConnected) {
+    bgLayerEl = document.getElementById(BACKGROUND_FLOW_ID);
+    lastAppliedColor = null;
+  }
+  return bgLayerEl;
+}
+
+// One ScrollTrigger update pass calls setProgress() on up to 12 entries;
+// compositing once per pass (in a microtask — still before this frame
+// paints) instead of once per entry gives the exact same final color.
+function scheduleComposite() {
+  if (compositeQueued) return;
+  compositeQueued = true;
+  queueMicrotask(() => {
+    compositeQueued = false;
+    composite();
   });
 }
 
 function composite() {
-  const bgLayer = document.getElementById(BACKGROUND_FLOW_ID);
+  const bgLayer = getBgLayer();
   if (!bgLayer) return;
 
-  const entries = sortedEntries();
+  const entries = ordered;
   if (entries.length === 0) return;
 
   // The furthest-down section whose transition has begun is the one
@@ -97,18 +127,20 @@ function composite() {
 export function createBackgroundFlowEntry(el: HTMLElement, color: string) {
   const key = Symbol();
   registry.set(key, { el, color, progress: 0 });
-  composite();
+  reorder();
+  scheduleComposite();
 
   return {
     setProgress(progress: number) {
       const entry = registry.get(key);
-      if (!entry) return;
+      if (!entry || entry.progress === progress) return;
       entry.progress = progress;
-      composite();
+      scheduleComposite();
     },
     destroy() {
       registry.delete(key);
-      composite();
+      reorder();
+      scheduleComposite();
     },
   };
 }

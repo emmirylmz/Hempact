@@ -2,13 +2,15 @@
 
 import { useRef } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { useGSAP } from "@gsap/react";
+import { IntentPrefetchLink } from "@/components/layout/IntentPrefetchLink";
 import { useContent, useLocale } from "@/lib/i18n/LocaleContext";
 import { colors } from "@/lib/theme";
-import { gsap, eases } from "@/lib/gsapConfig";
 import { useReducedMotion } from "@/lib/useReducedMotion";
-import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { preloadGsap, useLazyGsap, useLazySceneBackgroundFlow } from "@/lib/lazyGsap";
+
+// Q8-1: GSAP is loaded on demand (lib/lazyGsap.ts); the request starts as
+// soon as this first-screen module is evaluated.
+preloadGsap();
 
 const ACCENTS = [colors.mutedHemp, colors.deepHemp, colors.softClayRose];
 
@@ -24,25 +26,30 @@ export function ProductsGrid() {
   const noteRef = useRef<HTMLParagraphElement>(null);
   const ctaRef = useRef<HTMLAnchorElement>(null);
 
-  useSceneBackgroundFlow(containerRef, colors.softIvory);
+  useLazySceneBackgroundFlow(containerRef, colors.softIvory);
 
-  useGSAP(
-    () => {
-      if (reducedMotion) return;
+  useLazyGsap(
+    ({ gsap, eases }) => {
       const cards = cardRefs.current.filter((card): card is HTMLDivElement => card !== null);
-      gsap.set([eyebrowRef.current, headingRef.current, ...cards, noteRef.current, ctaRef.current], {
+      gsap.set([eyebrowRef.current, headingRef.current, noteRef.current, ctaRef.current], {
         opacity: 0,
         y: 20,
       });
+      // Cards hold the page's LCP image: rise only, never hidden at
+      // opacity 0 (docs/mobil.md; hiding them at hydration and fading back
+      // in is what pushed LCP late — QC3 Q3-6). Same timing/stagger.
+      gsap.set(cards, { y: 20 });
       gsap
         .timeline({ delay: 0.2 })
         .to(eyebrowRef.current, { opacity: 1, y: 0, duration: 0.6, ease: eases.fabric })
         .to(headingRef.current, { opacity: 1, y: 0, duration: 0.8, ease: eases.fabric }, "-=0.35")
-        .to(cards, { opacity: 1, y: 0, duration: 0.6, ease: eases.fabric, stagger: 0.1 }, "-=0.4")
+        .to(cards, { y: 0, duration: 0.6, ease: eases.fabric, stagger: 0.1 }, "-=0.4")
         .to(noteRef.current, { opacity: 1, y: 0, duration: 0.5, ease: eases.fabric }, "-=0.2")
         .to(ctaRef.current, { opacity: 1, y: 0, duration: 0.5, ease: eases.fabric }, "-=0.3");
     },
-    { scope: containerRef, dependencies: [reducedMotion] }
+    containerRef,
+    [],
+    { enabled: !reducedMotion }
   );
 
   const { urunler, section11, productLabels } = useContent();
@@ -83,7 +90,18 @@ export function ProductsGrid() {
                 src="/images/pad-cutout.png"
                 alt={product.name}
                 fill
-                sizes="(max-width: 640px) 100vw, 33vw"
+                // QC3 Q3-6: the first card's image is this page's LCP
+                // element. Next 16 deprecates `priority`; its docs prefer
+                // `loading="eager"` + `fetchPriority="high"` over `preload`
+                // (and say not to combine them). All three cards share one
+                // URL, so the other two (left lazy) reuse the same file.
+                loading={index === 0 ? "eager" : "lazy"}
+                fetchPriority={index === 0 ? "high" : undefined}
+                // `sizes` describes what's actually drawn: the portrait
+                // cutout (790x1292) is object-contain'd into the h-56 box
+                // minus p-8 → 160px tall ≈ 98px wide on every breakpoint
+                // (the old "100vw/33vw" made phones fetch the 1080w file).
+                sizes="100px"
                 className="object-contain p-8 transition-transform duration-500 group-hover:scale-105"
                 style={{ filter: `drop-shadow(0 14px 18px ${colors.charcoal}45) drop-shadow(0 4px 6px ${colors.charcoal}30)` }}
               />
@@ -120,14 +138,14 @@ export function ProductsGrid() {
       <p ref={noteRef} className="mt-14 max-w-md text-base font-light" style={{ color: colors.charcoal, opacity: 0.7 }}>
         {urunler.closingNote}
       </p>
-      <Link
+      <IntentPrefetchLink
         ref={ctaRef}
         href={`/${locale}/iletisim`}
         className="mt-6 rounded-full px-8 py-3 text-xs tracking-[0.2em] uppercase transition-transform hover:scale-105"
         style={{ backgroundColor: colors.deepHemp, color: colors.softIvory }}
       >
         {urunler.cta}
-      </Link>
+      </IntentPrefetchLink>
     </section>
   );
 }

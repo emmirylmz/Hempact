@@ -1,8 +1,7 @@
 "use client";
 
-import { useGSAP } from "@gsap/react";
 import type { RefObject } from "react";
-import { gsap, eases } from "@/lib/gsapConfig";
+import { useLazyGsap } from "@/lib/lazyGsap";
 
 type Refs = {
   container: RefObject<HTMLElement | null>;
@@ -14,10 +13,11 @@ type Refs = {
 // read, not a product demo to be scrubbed through, so it intentionally
 // borrows the site's simpler reveal idiom (Section11/Section12's own
 // pattern) rather than the video-driven pin timelines used elsewhere.
+// Q8-1: GSAP is loaded on demand and this is set up in an idle callback
+// (lib/lazyGsap.ts); until then the section shows in its final state.
 export function useInfoReveal({ container, icon, body }: Refs, reducedMotion: boolean) {
-  useGSAP(
-    () => {
-      if (reducedMotion) return;
+  useLazyGsap(
+    ({ gsap, eases }) => {
       if (!icon.current || !body.current) return;
 
       gsap.set(icon.current, { opacity: 0, y: 24, scale: 0.92 });
@@ -33,6 +33,8 @@ export function useInfoReveal({ container, icon, body }: Refs, reducedMotion: bo
         "-=0.5"
       );
     },
-    { scope: container, dependencies: [reducedMotion] }
+    container,
+    [],
+    { enabled: !reducedMotion, timing: "idle" }
   );
 }

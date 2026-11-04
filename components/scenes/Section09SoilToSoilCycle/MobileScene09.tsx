@@ -19,6 +19,14 @@ const CIRCUMFERENCE = 2 * Math.PI * R;
 const LABEL_R = R + 35;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
+// Pre-blurred halo (Faz 2 / P2, bulgu #10): the old
+// `radial-gradient(closest-side, deepHemp40, transparent 75%)` + `blur(30px)`
+// layer, sampled from Chromium's own blurred render at 390x844 into plain
+// gradient stops (deepHemp = rgb(64,85,72)). Measured against the original:
+// max 2.2/255, mean 0.13/255 per channel.
+const HALO_09 =
+  "radial-gradient(ellipse 31.9% 31.9% at 50% 50%, rgba(64,85,72,0.176) 0%, rgba(64,85,72,0.173) 5.6%, rgba(64,85,72,0.169) 11.1%, rgba(64,85,72,0.161) 16.7%, rgba(64,85,72,0.149) 22.2%, rgba(64,85,72,0.137) 27.8%, rgba(64,85,72,0.122) 33.3%, rgba(64,85,72,0.11) 38.9%, rgba(64,85,72,0.09) 44.4%, rgba(64,85,72,0.075) 50%, rgba(64,85,72,0.063) 55.6%, rgba(64,85,72,0.047) 61.1%, rgba(64,85,72,0.035) 66.7%, rgba(64,85,72,0.024) 72.2%, rgba(64,85,72,0.016) 77.8%, rgba(64,85,72,0.012) 83.3%, rgba(64,85,72,0.008) 88.9%, rgba(64,85,72,0.004) 94.4%, transparent 100%)";
+
 // Mobile-only rendering of Section09, hosted inside MobileStageRunB (see
 // components/scroll/MobileStage.tsx). Unlike Section01-07, Section09
 // previously had NO real mobile pin at all — its old `isMobile` branch
@@ -91,12 +99,13 @@ export function MobileScene09({ onProgressRef }: { onProgressRef: RefObject<((lo
       </div>
 
       <div className="relative z-10 flex w-full flex-1 items-center justify-center">
+        {/* Was a rounded 40dvh square with radial-gradient(closest-side,
+            deepHemp40, transparent 75%) + filter: blur(30px). Now the
+            pre-blurred result on a box grown by 3σ = 90px each side (still
+            centred by this flex container) — see HALO_09. */}
         <div
-          className="pointer-events-none absolute h-[40dvh] w-[40dvh] rounded-full"
-          style={{
-            background: `radial-gradient(closest-side, ${colors.deepHemp}40, transparent 75%)`,
-            filter: "blur(30px)",
-          }}
+          className="pointer-events-none absolute h-[calc(40dvh+180px)] w-[calc(40dvh+180px)]"
+          style={{ background: HALO_09 }}
           aria-hidden
         />
         <CycleIllustration ref={svgRef} markerRef={markerRef} trailRef={trailRef} stageCount={stageCount} />

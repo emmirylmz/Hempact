@@ -7,6 +7,7 @@ import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
 import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
+import media from "@/public/images/v2/manifest.json";
 import { useSection05Stage, LAYER_ACCENTS } from "./useSection05Stage";
 
 export function Section05PadLayers() {
@@ -152,12 +153,12 @@ export function Section05PadLayers() {
               ref={videoMaskRef}
               className="relative aspect-video w-[92%] overflow-hidden"
               style={{
-                // Very soft — now that the page background matches the
-                // footage's own studio tone almost exactly, a heavier
-                // shadow would be the one remaining thing making this read
-                // as a distinct floating element rather than page content.
-                filter: `drop-shadow(0 20px 36px ${colors.charcoal}18)`,
-                // Matches useSection05Stage's own VIDEO_MASK formula at
+                // No `filter: drop-shadow()` any more (bulgu #10): CSS
+                // applies filter → clip → mask, and this box's mask clips
+                // everything outside its own border box, while inside it
+                // the opaque video covers the shadow — so the shadow was
+                // never visible, only a per-frame filter pass over a
+                // scrubbing video. Matches useSection05Stage's own VIDEO_MASK formula at
                 // progress 0 — set here too so the very first paint,
                 // before any scroll-driven JS has run, already shows the
                 // feathered edge instead of a hard, unmasked rectangle.
@@ -184,10 +185,11 @@ export function Section05PadLayers() {
                 muted
                 playsInline
                 preload="auto"
+                poster={isVideoNear ? media["ped1.1"].poster : undefined}
                 aria-label={section05.imageAlt}
                 className="h-full w-full"
               >
-                {isVideoNear && <source src="/images/ped1.1.mp4" media="(min-width: 768px)" />}
+                {isVideoNear && <source src={media["ped1.1"].desktop} media="(min-width: 768px)" />}
               </video>
             </div>
           </div>

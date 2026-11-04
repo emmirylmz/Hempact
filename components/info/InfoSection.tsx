@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { colors } from "@/lib/theme";
 import { useReducedMotion } from "@/lib/useReducedMotion";
-import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { useLazySceneBackgroundFlow } from "@/lib/lazyGsap";
 import { useInfoReveal } from "./useInfoReveal";
 import { INFO_ICONS, StatRingIcon } from "./icons";
 
@@ -23,7 +23,7 @@ export function InfoSection({ data, index, bgColor }: { data: InfoSectionData; i
   const iconRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  useSceneBackgroundFlow(containerRef, bgColor);
+  useLazySceneBackgroundFlow(containerRef, bgColor);
   useInfoReveal({ container: containerRef, icon: iconRef, body: bodyRef }, reducedMotion);
 
   const reverse = index % 2 === 1;

@@ -7,6 +7,7 @@ import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
 import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
+import media from "@/public/images/v2/manifest.json";
 import { useSection04Timeline } from "./useSection04Timeline";
 
 export function Section04FiberToSurface() {
@@ -82,11 +83,12 @@ export function Section04FiberToSurface() {
             muted
             playsInline
             preload="auto"
+            poster={isVideoNear ? media.section4.poster : undefined}
             aria-label={section04.heading}
             className="relative w-full object-contain"
             style={{ aspectRatio: "1280 / 720" }}
           >
-            {isVideoNear && <source src="/images/section4.mp4" media="(min-width: 768px)" />}
+            {isVideoNear && <source src={media.section4.desktop} media="(min-width: 768px)" />}
           </video>
         </div>
       </div>

@@ -26,14 +26,22 @@ import { gsap, ScrollTrigger } from "@/lib/gsapConfig";
 // new frame — the internal position updates but nothing renders. A real
 // play() that resolves, immediately followed by pause(), forces the
 // decode pipeline to actually start once, so every later scrub paints
-// correctly. Fire-and-forget: call once per video on mount, don't gate
-// anything else on it.
-export function primeMobileVideo(videoEl: HTMLVideoElement) {
+// correctly. Don't gate anything else (pin creation, scrub) on it.
+//
+// Faz 2 / P2: no longer called by every scene on mount (that started 9
+// decoders at once during hydration, see docs/scroll-performans-raporu.md
+// 1.2). lib/mobileMedia.ts now calls it only for the active scene and the
+// next one, one video at a time, after load + idle (or the first touch) —
+// so it returns the play() outcome for that queue to wait on. The prime
+// itself (real play() that resolves, then pause()) is unchanged.
+export function primeMobileVideo(videoEl: HTMLVideoElement): Promise<void> {
   videoEl.muted = true;
   const primed = videoEl.play();
   if (primed && typeof primed.then === "function") {
-    primed.then(() => videoEl.pause()).catch(() => {});
+    return primed.then(() => videoEl.pause());
   }
+  videoEl.pause();
+  return Promise.resolve();
 }
 
 // Every MobileSceneNN.tsx's onProgressRef handler was assigning

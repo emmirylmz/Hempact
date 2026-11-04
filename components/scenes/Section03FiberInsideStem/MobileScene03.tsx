@@ -4,6 +4,7 @@ import { useRef, type RefObject } from "react";
 import { useContent } from "@/lib/i18n/LocaleContext";
 import { colors } from "@/lib/theme";
 import { useChromaKeyVideo } from "@/lib/useChromaKeyVideo";
+import { MOBILE_SOURCE_MEDIA } from "@/lib/mobileMedia";
 
 // section3.mp4's own flat backdrop, sampled directly from the file (mode
 // color across 10 frames via ffmpeg+sharp — see MobileScene02.tsx's own
@@ -17,6 +18,14 @@ import { useChromaKeyVideo } from "@/lib/useChromaKeyVideo";
 // actually reliable.
 const KEY: [number, number, number] = [248, 244, 240];
 
+// Pre-blurred halo (Faz 2 / P2, bulgu #10): the old
+// `radial-gradient(ellipse, deepHemp35, transparent 70%)` + `blur(40px)`
+// layer, sampled from Chromium's own blurred render at 390px into plain
+// gradient stops (deepHemp = rgb(64,85,72)). Measured against the original:
+// max 3.0/255, mean 0.24/255 per channel.
+const HALO_03 =
+  "radial-gradient(ellipse 35.9% 33.6% at 50% 50%, rgba(64,85,72,0.118) 0%, rgba(64,85,72,0.118) 5.6%, rgba(64,85,72,0.114) 11.1%, rgba(64,85,72,0.11) 16.7%, rgba(64,85,72,0.102) 22.2%, rgba(64,85,72,0.094) 27.8%, rgba(64,85,72,0.086) 33.3%, rgba(64,85,72,0.075) 38.9%, rgba(64,85,72,0.063) 44.4%, rgba(64,85,72,0.055) 50%, rgba(64,85,72,0.047) 55.6%, rgba(64,85,72,0.035) 61.1%, rgba(64,85,72,0.027) 66.7%, rgba(64,85,72,0.02) 72.2%, rgba(64,85,72,0.012) 77.8%, rgba(64,85,72,0.008) 83.3%, rgba(64,85,72,0.004) 88.9%, rgba(64,85,72,0.004) 94.4%, transparent 100%)";
+
 // Mobile-only rendering of Section03, hosted inside MobileStageRunA — see
 // MobileScene02.tsx's own comment, same pattern exactly (genuine canvas
 // chroma-key transparency, not a mask or plain colorkey-only video).
@@ -25,7 +34,10 @@ export function MobileScene03({ onProgressRef }: { onProgressRef: RefObject<((lo
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { section03 } = useContent();
 
-  useChromaKeyVideo(videoRef, canvasRef, onProgressRef, KEY);
+  // Lazy <source>, deferred iOS priming, and the pre-keyed alpha poster
+  // drawn into the canvas until the first real frame: see
+  // lib/useChromaKeyVideo.ts + lib/mobileMedia.ts.
+  const media = useChromaKeyVideo("03", videoRef, canvasRef, onProgressRef, KEY);
 
   return (
     // pt-28 + [justify-content:safe_center]: see MobileScene01.tsx's own
@@ -45,12 +57,12 @@ export function MobileScene03({ onProgressRef }: { onProgressRef: RefObject<((lo
 
       <div className="relative z-10 flex w-full flex-1 items-center justify-center">
         <div className="relative w-full max-w-xl">
+          {/* Was radial-gradient(ellipse, deepHemp35, transparent 70%) +
+              filter: blur(40px); now the pre-blurred result, see HALO_03's
+              comment (box extended by 3σ = 120px). */}
           <div
-            className="pointer-events-none absolute inset-0 -z-10 scale-150"
-            style={{
-              background: `radial-gradient(ellipse, ${colors.deepHemp}35, transparent 70%)`,
-              filter: "blur(40px)",
-            }}
+            className="pointer-events-none absolute -z-10 scale-150"
+            style={{ inset: "-120px", background: HALO_03 }}
             aria-hidden
           />
           <div className="relative w-full" style={{ aspectRatio: "1280 / 720" }}>
@@ -64,11 +76,11 @@ export function MobileScene03({ onProgressRef }: { onProgressRef: RefObject<((lo
               ref={videoRef}
               muted
               playsInline
-              preload="auto"
+              preload={media.preload}
               aria-hidden
               className="absolute inset-0 h-full w-full object-contain opacity-0"
             >
-              <source src="/images/section3.mp4" media="(max-width: 767.98px)" />
+              {media.attached && <source src={media.src} type="video/mp4" media={MOBILE_SOURCE_MEDIA} />}
             </video>
             <canvas
               ref={canvasRef}

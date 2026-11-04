@@ -3,6 +3,7 @@
 import type { RefObject } from "react";
 import { useEffect } from "react";
 import { gsap, ScrollTrigger } from "@/lib/gsapConfig";
+import { syncScrubOnLoad } from "@/lib/useLazyVideoSource";
 import { colors } from "@/lib/theme";
 
 interface Section05StageRefs {
@@ -124,6 +125,10 @@ export function useSection05Stage(
 
     let scrub: ScrollTrigger | undefined;
     let cancelled = false;
+    // Paint guard only (QC3 Q3-1): this stage already builds its scrub on
+    // `loadedmetadata` and applies the current position itself, so there is
+    // no target to resync — `null` skips that half of the helper.
+    const stopPaintGuard = syncScrubOnLoad(videoEl, () => null);
 
     const setup = () => {
       if (cancelled) return;
@@ -191,6 +196,7 @@ export function useSection05Stage(
 
     return () => {
       cancelled = true;
+      stopPaintGuard();
       scrub?.kill();
       videoEl.removeEventListener("loadedmetadata", setup);
     };

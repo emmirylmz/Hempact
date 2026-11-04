@@ -83,5 +83,5 @@ export function MobileStageRunA() {
   // the top of the descending sitewide scheme (see
   // Section01FirstEncounter's own comment); needs to outrank Section08
   // (z-[10]), the next thing after this run in the document.
-  return <MobileStage id="mobile-stage-run-a" scenes={scenes} className="z-[24]" />;
+  return <MobileStage id="mobile-stage-run-a" scenes={scenes} className="z-[24]" deferSetup="task" />;
 }

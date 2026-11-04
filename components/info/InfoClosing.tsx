@@ -2,11 +2,9 @@
 
 import { useRef } from "react";
 import Link from "next/link";
-import { useGSAP } from "@gsap/react";
 import { colors } from "@/lib/theme";
-import { gsap, eases } from "@/lib/gsapConfig";
 import { useReducedMotion } from "@/lib/useReducedMotion";
-import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { useLazyGsap, useLazySceneBackgroundFlow } from "@/lib/lazyGsap";
 
 export type InfoClosingData = {
   heading: string;
@@ -19,11 +17,11 @@ export function InfoClosing({ closing, ctaHref }: { closing: InfoClosingData; ct
   const headingRef = useRef<HTMLHeadingElement>(null);
   const ctaRef = useRef<HTMLAnchorElement>(null);
 
-  useSceneBackgroundFlow(containerRef, colors.warmLinen);
+  useLazySceneBackgroundFlow(containerRef, colors.warmLinen);
 
-  useGSAP(
-    () => {
-      if (reducedMotion) return;
+  // Q8-1: below the fold, set up in an idle callback (lib/lazyGsap.ts).
+  useLazyGsap(
+    ({ gsap, eases }) => {
       gsap.set([headingRef.current, ctaRef.current], { opacity: 0, y: 16 });
       gsap
         .timeline({
@@ -32,7 +30,9 @@ export function InfoClosing({ closing, ctaHref }: { closing: InfoClosingData; ct
         .to(headingRef.current, { opacity: 1, y: 0, duration: 0.7, ease: eases.fabric })
         .to(ctaRef.current, { opacity: 1, y: 0, duration: 0.6, ease: eases.fabric }, "-=0.35");
     },
-    { scope: containerRef, dependencies: [reducedMotion] }
+    containerRef,
+    [],
+    { enabled: !reducedMotion, timing: "idle" }
   );
 
   return (

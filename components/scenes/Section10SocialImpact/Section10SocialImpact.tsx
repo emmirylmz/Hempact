@@ -7,8 +7,13 @@ import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
 import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
+import media from "@/public/images/v2/manifest.json";
 import { useSection10Timeline } from "./useSection10Timeline";
 import { ImpactIllustration, VIDEO_RECT } from "./ImpactIllustration";
+
+// VP9-with-alpha encode (P1, verified). The manifest only lists the MP4
+// fallback; the alpha file name is fixed by the shared media contract.
+const KADINS_ALPHA_WEBM = "/images/v2/kadinsSon.webm";
 
 export function Section10SocialImpact() {
   const reducedMotion = useReducedMotion();
@@ -64,12 +69,14 @@ export function Section10SocialImpact() {
       <div className="relative z-10 flex w-full flex-1 items-start justify-center">
         <div
           className="pointer-events-none absolute h-[36dvh] w-[56dvh] rounded-full md:h-[42dvh] md:w-[64dvh]"
-          style={{
-            background: `radial-gradient(ellipse, ${colors.deepHemp}35, transparent 75%)`,
-            filter: "blur(30px)",
-          }}
           aria-hidden
-        />
+        >
+          {/* Was the same gradient + `filter: blur()`. Now pre-softened:
+              extra stops follow the blurred profile (slightly lower peak,
+              Gaussian tail), on a box grown 25% per side so the tail never
+              meets an edge. Static paint, no per-frame GPU blur (bulgu #10). */}
+          <div className="absolute -inset-[25%]" style={{ background: `radial-gradient(ellipse 47.14% 47.14% at 50% 50%, ${colors.deepHemp}2d 0%, ${colors.deepHemp}1b 37.5%, ${colors.deepHemp}03 75%, ${colors.deepHemp}01 87%, transparent 97%)` }} />
+        </div>
 
         {/* Sized exactly like the old SVG-only version was (w-[99vh]/
             md:w-[114vh], aspect matching its cropped 600x240 viewBox) —
@@ -139,8 +146,8 @@ export function Section10SocialImpact() {
                 bug. */}
             {isVideoNear && (
               <>
-                <source src="/images/kadinsSon.webm" type="video/webm" media="(min-width: 768px)" />
-                <source src="/images/kadinsSon-fallback.mp4" type="video/mp4" media="(min-width: 768px)" />
+                <source src={KADINS_ALPHA_WEBM} type="video/webm" media="(min-width: 768px)" />
+                <source src={media["kadinsSon-fallback"].desktop} type="video/mp4" media="(min-width: 768px)" />
               </>
             )}
           </video>

@@ -7,6 +7,7 @@ import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
 import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
+import media from "@/public/images/v2/manifest.json";
 import { useSection06Timeline } from "./useSection06Timeline";
 
 export function Section06LiquidManagement() {
@@ -66,6 +67,7 @@ export function Section06LiquidManagement() {
             muted
             playsInline
             preload="auto"
+            poster={isVideoNear ? media["liquid-drop"].poster : undefined}
             aria-label={section06.heading}
             className="h-full w-full object-cover"
             style={{
@@ -73,7 +75,7 @@ export function Section06LiquidManagement() {
               WebkitMaskImage: "radial-gradient(ellipse 62% 62% at 50% 50%, black 45%, transparent 92%)",
             }}
           >
-            {isVideoNear && <source src="/images/liquid-drop.mp4" media="(min-width: 768px)" />}
+            {isVideoNear && <source src={media["liquid-drop"].desktop} media="(min-width: 768px)" />}
           </video>
         </div>
       </div>

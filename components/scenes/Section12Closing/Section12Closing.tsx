@@ -7,7 +7,8 @@ import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
 import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
-import { useScrollToSection } from "@/components/scroll/SmoothScrollProvider";
+import media from "@/public/images/v2/manifest.json";
+import { useScrollToSection } from "@/components/scroll/scrollContext";
 import { useSection12Timeline } from "./useSection12Timeline";
 import { useSection12VideoScrub } from "./useSection12VideoScrub";
 
@@ -30,7 +31,8 @@ export function Section12Closing() {
   useSceneBackgroundFlow(containerRef, colors.warmLinen, !isMobile);
   useSection12Timeline(
     { container: containerRef, image: imageRef, ring: ringRef, heading: headingRef, subheading: subheadingRef, cta: ctaRef },
-    reducedMotion
+    reducedMotion,
+    !isMobile
   );
   // Grows through the field footage as the reader scrolls, same pattern as
   // Section01's hero clip — desktop only (see the hook for the mobile/
@@ -66,12 +68,14 @@ export function Section12Closing() {
             frame" illusion rather than the blur alone. */}
         <div
           className="pointer-events-none absolute inset-0 -z-10 scale-125"
-          style={{
-            background: `radial-gradient(ellipse 62% 58% at 50% 52%, ${colors.mistSage}80 0%, ${colors.paleHemp}55 45%, transparent 75%)`,
-            filter: "blur(24px)",
-          }}
           aria-hidden
-        />
+        >
+          {/* Was the same gradient + `filter: blur()`. Now pre-softened:
+              extra stops follow the blurred profile (slightly lower peak,
+              Gaussian tail), on a box grown 25% per side so the tail never
+              meets an edge. Static paint, no per-frame GPU blur (bulgu #10). */}
+          <div className="absolute -inset-[25%]" style={{ background: `radial-gradient(ellipse 41.33% 38.67% at 50% 51.33%, ${colors.mistSage}80 0%, ${colors.paleHemp}55 45%, ${colors.paleHemp}2b 60%, ${colors.paleHemp}0b 75%, ${colors.paleHemp}02 84%, transparent 93%)` }} />
+        </div>
         <svg viewBox="0 0 340 340" width="340" height="340" className="pointer-events-none absolute -inset-6 h-[calc(100%+3rem)] w-[calc(100%+3rem)]" aria-hidden>
           <circle ref={ringRef} cx="170" cy="170" r="160" fill="none" stroke={colors.mutedCycleRed} strokeWidth="2" />
         </svg>
@@ -89,15 +93,21 @@ export function Section12Closing() {
           muted
           playsInline
           preload="auto"
+          poster={isVideoNear ? media.ss1.poster : undefined}
           aria-label={section12.imageAlt}
           className="h-[38dvh] w-auto object-contain md:h-[44dvh]"
+          // No `filter: drop-shadow()` (bulgu #10): filter is applied
+          // before the mask, the mask clips everything outside the video's
+          // own box, and inside it the opaque footage covers the shadow —
+          // it was never visible, only a per-frame filter pass on a
+          // scrubbing video. The poster also gives this `w-auto` box its
+          // real 16:9 width before metadata arrives (previously 300x150).
           style={{
             maskImage: "radial-gradient(ellipse closest-side at 50% 50%, black 68%, transparent 90%)",
             WebkitMaskImage: "radial-gradient(ellipse closest-side at 50% 50%, black 68%, transparent 90%)",
-            filter: `drop-shadow(0 26px 30px ${colors.charcoal}30) drop-shadow(0 8px 10px ${colors.charcoal}20)`,
           }}
         >
-          {isVideoNear && <source src="/images/ss1.mp4" media="(min-width: 768px)" />}
+          {isVideoNear && <source src={media.ss1.desktop} media="(min-width: 768px)" />}
         </video>
       </div>
 

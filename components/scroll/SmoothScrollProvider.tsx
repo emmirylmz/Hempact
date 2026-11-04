@@ -1,12 +1,25 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef } from "react";
-import Lenis from "lenis";
-import { gsap, ScrollTrigger, registerGsap } from "@/lib/gsapConfig";
+import { useEffect, useRef } from "react";
+import type Lenis from "lenis";
+import { ScrollTrigger, registerGsap } from "@/lib/gsapConfig";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
+import { LenisContext } from "./scrollContext";
+import { startLenis, scrollTriggerRestoreSync } from "./lenisDriver";
+import { restoreScrollPosition, startSavingScrollPosition } from "./scrollRestoration";
 
-const LenisContext = createContext<React.RefObject<Lenis | null> | null>(null);
+// Re-exported for backward compatibility (MobileScene12 and others import it
+// from here). Code that doesn't need the provider itself — NavBar in
+// particular — imports from "./scrollContext" instead, so it doesn't pull
+// GSAP + Lenis into its own client chunk (bulgu #13).
+export { useScrollToSection } from "./scrollContext";
+
+// Home page only (app/[lang]/page.tsx). Scroll position restoration
+// (QC2 O4) lives in ./scrollRestoration.ts and the Lenis + gsap.ticker
+// driver in ./lenisDriver.ts, both moved out of this file unchanged (Q8-1)
+// so the sub-pages' SubpageScrollProvider can share them without loading
+// GSAP + Lenis up front.
 
 export function SmoothScrollProvider({ children }: { children: React.ReactNode }) {
   const reducedMotion = useReducedMotion();
@@ -32,7 +45,7 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
     //    React rendering pinned sections never fires one, so a scrollTo can
     //    silently clamp short of a target that only exists further down
     //    than Lenis last measured. `lenis.resize()` forces a remeasure
-    //    first; the same call is in useScrollToSection below for the same
+    //    first; the same call is in useScrollToSection (./scrollContext.ts) for the same
     //    reason.
     let hashTimeoutId: ReturnType<typeof setTimeout> | undefined;
     const scrollToHashTarget = (lenis: Lenis | null) => {
@@ -51,54 +64,45 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
       }, 100);
     };
 
-    if (reducedMotion || isMobile) {
+    // The single hydration-time refresh. Every pinned ScrollTrigger created
+    // in the children's (earlier-running) effects queues its own rAF
+    // refresh; this synchronous one supersedes that queue (ScrollTrigger
+    // drops a queued refresh once another one has run). The only other
+    // startup refresh is the settled-layout one scheduled in
+    // lib/gsapConfig.ts (fonts + window load) — two in total, not three.
+    const stopSaving = startSavingScrollPosition();
+
+    // Lenis stays off on touch screens at any width (docs/mobil.md: native
+    // scrolling on touch devices). Width alone decides mobile vs desktop
+    // structure (lib/useIsMobile.ts), so a touch tablet at >= 768px gets the
+    // desktop pins with native scrolling.
+    const touchPrimary = window.matchMedia("(pointer: coarse)").matches;
+    if (reducedMotion || isMobile || touchPrimary) {
       ScrollTrigger.refresh();
+      const stopRestore = restoreScrollPosition(null, scrollTriggerRestoreSync);
       scrollToHashTarget(null);
       return () => {
         if (hashTimeoutId) clearTimeout(hashTimeoutId);
+        stopRestore?.();
+        stopSaving();
       };
     }
 
-    const lenis = new Lenis({ duration: 1.2, smoothWheel: true });
+    const { lenis, stop: stopLenis } = startLenis();
     lenisRef.current = lenis;
-    lenis.on("scroll", ScrollTrigger.update);
-
-    const tick = (time: number) => lenis.raf(time * 1000);
-    gsap.ticker.add(tick);
 
     ScrollTrigger.refresh();
+    const stopRestore = restoreScrollPosition(lenis, scrollTriggerRestoreSync);
     scrollToHashTarget(lenis);
 
     return () => {
       if (hashTimeoutId) clearTimeout(hashTimeoutId);
-      gsap.ticker.remove(tick);
-      lenis.destroy();
+      stopRestore?.();
+      stopSaving();
+      stopLenis();
       lenisRef.current = null;
     };
   }, [reducedMotion, isMobile]);
 
   return <LenisContext.Provider value={lenisRef}>{children}</LenisContext.Provider>;
-}
-
-export function useScrollToSection() {
-  const lenisRef = useContext(LenisContext);
-
-  return (sectionId: string) => {
-    const target = document.getElementById(sectionId);
-    if (!target) return;
-
-    const lenis = lenisRef?.current;
-    if (lenis) {
-      // Lenis caches its own max-scroll `limit` and only recalculates it on
-      // a native window resize — this page's height keeps growing after
-      // load purely from GSAP pin-spacers being inserted, which never fires
-      // one, so scrollTo can silently clamp short of a target that only
-      // exists further down than Lenis last measured. Cheap to call before
-      // every scroll; see the fuller writeup on this in the effect above.
-      lenis.resize();
-      lenis.scrollTo(target, { offset: -88, duration: 1.4 });
-    } else {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
 }

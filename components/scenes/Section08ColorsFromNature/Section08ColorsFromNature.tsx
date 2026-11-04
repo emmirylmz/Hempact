@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { Activity, useRef } from "react";
 import Image from "next/image";
 import { useContent } from "@/lib/i18n/LocaleContext";
 import { colors } from "@/lib/theme";
 import { useReducedMotion } from "@/lib/useReducedMotion";
+import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
 import { useSection08Timeline } from "./useSection08Timeline";
 
@@ -14,13 +15,29 @@ const ICONS = [
   { src: "/images/icon-blood-drop.png", tint: colors.mutedCycleRed, boxClass: "h-[60%] w-[60%]", imageClass: "opacity-85" },
 ] as const;
 
+// Own <Activity> boundary = selective hydration (QC6 Q6-2; see the note
+// in MobileStageRunB.tsx for why not <Suspense>): this section sits
+// below the first mobile run, so React hydrates it in a later,
+// interruptible pass instead of inside the single task that a touch during
+// hydration forces to finish synchronously. Its server HTML is the final
+// static markup, so nothing changes visually; the hooks below (background
+// flow, idle-deferred reveal) start when the boundary hydrates.
 export function Section08ColorsFromNature() {
+  return (
+    <Activity>
+      <Section08ColorsFromNatureBody />
+    </Activity>
+  );
+}
+
+function Section08ColorsFromNatureBody() {
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLElement>(null);
   const columnRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useSceneBackgroundFlow(containerRef, colors.paleHemp);
-  useSection08Timeline({ container: containerRef, columns: columnRefs }, reducedMotion);
+  const isMobile = useIsMobile();
+  useSection08Timeline({ container: containerRef, columns: columnRefs }, reducedMotion, !isMobile);
 
   const { section08 } = useContent();
 

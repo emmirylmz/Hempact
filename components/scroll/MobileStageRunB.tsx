@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { Activity, useRef } from "react";
 import { MobileStage, type StageScene } from "./MobileStage";
 import { colors } from "@/lib/theme";
 import { MobileScene09 } from "@/components/scenes/Section09SoilToSoilCycle/MobileScene09";
@@ -38,5 +38,23 @@ export function MobileStageRunB() {
   // z-[8]: matches Section09's own original value, the higher of the two
   // superseded per-section z-indexes in this run — needs to outrank
   // Section11 (z-[4]), the next thing after this run in the document.
-  return <MobileStage id="mobile-stage-run-b" scenes={scenes} className="z-[8]" />;
+  // Own <Activity> boundary = selective hydration (QC6 Q6-2): React hydrates
+  // this run after the first-screen tree, in its own interruptible pass,
+  // instead of inside the one task a touch during hydration forces
+  // synchronously (that task was 0.8-1.0 s at 4x CPU). Its pin is built in
+  // idle time anyway (deferSetup="idle"); PRESIZE_ATTR holds its geometry
+  // until then.
+  // Why <Activity mode="visible"> and not <Suspense> (QC7 Q7-1): both are
+  // dehydrated on the client and hydrated at OffscreenLane, but Fizz
+  // outlines any completed Suspense boundary over 500 bytes once the shell
+  // passes progressiveChunkSize (12.8 KB, not configurable in Next): it is
+  // sent as `<div hidden id="S:n">` + an inline `$RC` swap, so without JS
+  // these sections never showed and with JS the page grew for ~1 s after
+  // first paint (footer pushed down). An Activity boundary is only a pair
+  // of `<!--&-->` comments around inline HTML; it is never outlined.
+  return (
+    <Activity>
+      <MobileStage id="mobile-stage-run-b" scenes={scenes} className="z-[8]" deferSetup="idle" />
+    </Activity>
+  );
 }

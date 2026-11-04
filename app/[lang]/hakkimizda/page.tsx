@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { Fraunces } from "next/font/google";
 import { notFound } from "next/navigation";
-import { SmoothScrollProvider } from "@/components/scroll/SmoothScrollProvider";
+import { SubpageScrollProvider } from "@/components/scroll/SubpageScrollProvider";
 import { BackgroundFlow } from "@/components/scroll/BackgroundFlow";
 import { NavBar } from "@/components/layout/NavBar";
 import { Footer } from "@/components/layout/Footer";
@@ -10,6 +11,21 @@ import { buildMetadata } from "@/lib/seo";
 import { InfoHero } from "@/components/info/InfoHero";
 import { InfoSection } from "@/components/info/InfoSection";
 import { InfoClosing } from "@/components/info/InfoClosing";
+
+// QC4 Q4-3: same preloaded Fraunces italic instance as app/[lang]/iletisim/
+// page.tsx (identical settings, so the same font file URLs). This page has
+// italic display text (InfoSection); resolving `.italic` to this instance
+// here keeps the page from also downloading the layout-level, non-preloaded
+// copy of the same font (lib/fonts.ts `displayItalic`), which would be a
+// second download once the user moves on to /iletisim. QC5 Q5-1: the nav
+// prefetches this page and /iletisim only on intent (components/layout/
+// IntentPrefetchLink.tsx), so these preloads no longer leak to other pages.
+const displayItalicPreloaded = Fraunces({
+  variable: "--font-display-italic",
+  subsets: ["latin", "latin-ext"],
+  weight: ["300", "400", "500"],
+  style: ["italic"],
+});
 
 const COPY: Record<Locale, { title: string; description: string }> = {
   tr: {
@@ -41,10 +57,10 @@ export default async function HakkimizdaPage({ params }: { params: Promise<{ lan
   const content = getContent(lang);
 
   return (
-    <SmoothScrollProvider>
+    <SubpageScrollProvider>
       <BackgroundFlow initialColor={colors.warmLinen} />
       <NavBar />
-      <main>
+      <main className={displayItalicPreloaded.variable}>
         <InfoHero hero={content.hakkimizda.hero} />
         {content.hakkimizda.sections.map((section, index) => (
           <InfoSection key={section.id} data={section} index={index} bgColor={SECTION_COLORS[index] ?? colors.paleHemp} />
@@ -52,6 +68,6 @@ export default async function HakkimizdaPage({ params }: { params: Promise<{ lan
         <InfoClosing closing={content.hakkimizda.closing} ctaHref={`/${lang}#section-11-product-family`} />
       </main>
       <Footer />
-    </SmoothScrollProvider>
+    </SubpageScrollProvider>
   );
 }

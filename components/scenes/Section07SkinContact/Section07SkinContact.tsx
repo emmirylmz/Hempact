@@ -7,6 +7,7 @@ import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
 import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
+import media from "@/public/images/v2/manifest.json";
 import { useSection07Timeline } from "./useSection07Timeline";
 
 export function Section07SkinContact() {
@@ -56,12 +57,14 @@ export function Section07SkinContact() {
         <div className="relative h-[34dvh] w-full max-w-lg md:h-[40dvh]">
           <div
             className="pointer-events-none absolute inset-0 -z-10 scale-125"
-            style={{
-              background: `radial-gradient(ellipse 70% 65% at 50% 50%, ${colors.deepHemp}55 0%, transparent 75%)`,
-              filter: "blur(30px)",
-            }}
             aria-hidden
-          />
+          >
+            {/* Was the same gradient + `filter: blur()`. Now pre-softened:
+                extra stops follow the blurred profile (slightly lower peak,
+                Gaussian tail), on a box grown 25% per side so the tail never
+                meets an edge. Static paint, no per-frame GPU blur (bulgu #10). */}
+            <div className="absolute -inset-[25%]" style={{ background: `radial-gradient(ellipse 46.67% 43.33% at 50% 50%, ${colors.deepHemp}46 0%, ${colors.deepHemp}2b 37.5%, ${colors.deepHemp}05 75%, ${colors.deepHemp}01 86%, transparent 96%)` }} />
+          </div>
           {/* No card, border, or shadow — a soft radial mask fades the
               footage's own edges into the section's flat color instead, so
               there's no rectangular "video player" edge to give away that
@@ -82,10 +85,11 @@ export function Section07SkinContact() {
               muted
               playsInline
               preload="auto"
+              poster={isVideoNear ? media["skin-contact-weave"].poster : undefined}
               aria-label={section07.heading}
               className="absolute inset-0 h-full w-full object-cover"
             >
-              {isVideoNear && <source src="/images/skin-contact-weave.mp4" media="(min-width: 768px)" />}
+              {isVideoNear && <source src={media["skin-contact-weave"].desktop} media="(min-width: 768px)" />}
             </video>
             <div
               ref={sheenRef}

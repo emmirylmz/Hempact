@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { SmoothScrollProvider } from "@/components/scroll/SmoothScrollProvider";
+import { SubpageScrollProvider } from "@/components/scroll/SubpageScrollProvider";
 import { BackgroundFlow } from "@/components/scroll/BackgroundFlow";
 import { NavBar } from "@/components/layout/NavBar";
 import { Footer } from "@/components/layout/Footer";
@@ -31,13 +31,13 @@ export default async function UrunlerPage({ params }: { params: Promise<{ lang: 
   if (!isLocale(lang)) notFound();
 
   return (
-    <SmoothScrollProvider>
+    <SubpageScrollProvider>
       <BackgroundFlow initialColor={colors.warmLinen} />
       <NavBar />
       <main>
         <ProductsGrid />
       </main>
       <Footer />
-    </SmoothScrollProvider>
+    </SubpageScrollProvider>
   );
 }

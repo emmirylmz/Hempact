@@ -7,6 +7,7 @@ import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
 import { useLazyVideoSource } from "@/lib/useLazyVideoSource";
+import media from "@/public/images/v2/manifest.json";
 import { useSection02Timeline } from "./useSection02Timeline";
 
 export function Section02RegenerativeFiber() {
@@ -49,19 +50,21 @@ export function Section02RegenerativeFiber() {
       <div className="relative z-10 flex w-full flex-1 items-center justify-center">
         <div className="relative w-full max-w-xl">
           {/* Same "glow echo" technique as Section01's hero footage: a
-              heavily-blurred sweep of the same two tones sitting behind the
+              softly-faded sweep of the same two tones sitting behind the
               clip, so the video's own true per-pixel transparency (see
               section2.webm — colorkeyed, not masked) reads as the plant
               floating in the section's own atmosphere rather than a
               rectangle of footage pasted on top of it. */}
           <div
             className="pointer-events-none absolute inset-0 -z-10 scale-150"
-            style={{
-              background: `radial-gradient(ellipse, ${colors.mutedHemp}45, transparent 70%)`,
-              filter: "blur(40px)",
-            }}
             aria-hidden
-          />
+          >
+            {/* Was the same gradient + `filter: blur()`. Now pre-softened:
+                extra stops follow the blurred profile (slightly lower peak,
+                Gaussian tail), on a box grown 25% per side so the tail never
+                meets an edge. Static paint, no per-frame GPU blur (bulgu #10). */}
+            <div className="absolute -inset-[25%]" style={{ background: `radial-gradient(ellipse 47.14% 47.14% at 50% 50%, ${colors.mutedHemp}36 0%, ${colors.mutedHemp}23 35%, ${colors.mutedHemp}05 70%, ${colors.mutedHemp}01 83%, transparent 96%)` }} />
+          </div>
           {/* Single MP4, no WebM source anymore — the WebM's own claimed
               alpha channel (ALPHA_MODE:1 in the container) never actually
               decoded to real transparency in practice (verified via a raw
@@ -92,11 +95,12 @@ export function Section02RegenerativeFiber() {
             muted
             playsInline
             preload="auto"
+            poster={isVideoNear ? media.section2.poster : undefined}
             aria-label={section02.heading}
             className="relative w-full object-contain"
             style={{ aspectRatio: "1280 / 720" }}
           >
-            {isVideoNear && <source src="/images/section2.mp4" media="(min-width: 768px)" />}
+            {isVideoNear && <source src={media.section2.desktop} media="(min-width: 768px)" />}
           </video>
         </div>
       </div>

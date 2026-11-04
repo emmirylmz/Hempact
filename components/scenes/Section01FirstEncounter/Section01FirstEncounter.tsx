@@ -1,7 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { preload } from "react-dom";
 import { SceneWrapper } from "@/components/scroll/SceneWrapper";
+import { markHeroMediaStarted, DESKTOP_SOURCE_MEDIA } from "@/lib/useLazyVideoSource";
+import { useReloadWhenSourceMatches } from "@/lib/videoSourceMatch";
+import media from "@/public/images/v2/manifest.json";
 import { useContent } from "@/lib/i18n/LocaleContext";
 import { colors } from "@/lib/theme";
 import { useReducedMotion } from "@/lib/useReducedMotion";
@@ -11,7 +15,20 @@ import { useSection01Timeline } from "./useSection01Timeline";
 import { useSection01VideoScrub } from "./useSection01VideoScrub";
 import { TriToneBackground } from "./TriToneBackground";
 
+const HERO = media["hero-plant-growth"];
+
 export function Section01FirstEncounter() {
+  // Hero poster preload (bulgu #4): `ReactDOM.preload` is this Next/React
+  // version's documented way to emit `<link rel="preload">` from a
+  // component (node_modules/next/dist/docs/.../generate-metadata.md,
+  // "Resource hints"); it's hoisted into <head> during SSR and deduped by
+  // href. One per breakpoint, `media`-gated so each viewport fetches only
+  // its own frame (the mobile one is MobileScene01's poster). The poster is
+  // the video's own first frame, so it's exactly what this box shows until
+  // the reader first scrolls.
+  preload(HERO.poster, { as: "image", fetchPriority: "high", media: "(min-width: 768px)" });
+  preload(HERO.posterMobile, { as: "image", fetchPriority: "high", media: "(max-width: 767.98px)" });
+
   const reducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
   const containerRef = useRef<HTMLElement>(null);
@@ -20,19 +37,35 @@ export function Section01FirstEncounter() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const subheadingRef = useRef<HTMLParagraphElement>(null);
   const scrollCueRef = useRef<HTMLDivElement>(null);
-  // Gates the hero video's own `<source>` mount — see
-  // useSection01Timeline's own comment on why this waits for the entrance
-  // reveal to finish instead of loading immediately alongside it.
-  const [heroVideoReady, setHeroVideoReady] = useState(false);
-
   useSection01Timeline(
     { container: containerRef, image: imageRef, heading: headingRef, subheading: subheadingRef, scrollCue: scrollCueRef },
     reducedMotion,
-    () => setHeroVideoReady(true)
+    undefined,
+    isMobile ? "off" : "handoff"
   );
+  // QC2 K2: the hero `<source>` is in the server HTML, so the hero video
+  // downloads with the page itself (it used to wait ~2 s for the entrance
+  // reveal and then raced Section02). The other scenes' lazy videos open
+  // their startup gate only once this one can actually play (`canplay`;
+  // see lib/useLazyVideoSource.ts). On mobile this copy's source never
+  // matches, so the gate falls back to its timeout — mobile scenes use
+  // their own scheduler anyway.
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+    if (videoEl.readyState >= 3) {
+      markHeroMediaStarted();
+      return;
+    }
+    const onCanPlay = () => markHeroMediaStarted();
+    videoEl.addEventListener("canplay", onCanPlay, { once: true });
+    return () => videoEl.removeEventListener("canplay", onCanPlay);
+  }, []);
   // Grows the plant as the reader scrolls, instead of just autoplaying —
   // desktop only (see the hook for the mobile/reduced-motion fallback).
   useSection01VideoScrub({ container: containerRef, video: videoRef }, reducedMotion, isMobile);
+  // Loaded at a mobile width, then widened (Q6-3).
+  useReloadWhenSourceMatches(videoRef, DESKTOP_SOURCE_MEDIA);
   // A representative mid-tone of the hero's own light→dark green sweep
   // (see TriToneBackground) rather than the page's usual warmLinen, so the
   // handoff to/from neighboring sections during scroll stays green-toned
@@ -68,23 +101,28 @@ export function Section01FirstEncounter() {
       <SceneWrapper id="section-01-first-encounter" ref={containerRef} className="z-[24] px-6">
         <TriToneBackground />
 
-      <div ref={imageRef} className="relative z-10 mb-8 w-full max-w-xl px-10 sm:px-6">
+      {/* hero-enter-*: the entrance runs in CSS from first paint (see
+          app/globals.css and useSection01Timeline's handoff). */}
+      <div ref={imageRef} className="hero-enter-image relative z-10 mb-8 w-full max-w-xl px-10 sm:px-6">
         {/* Glow "echo" behind the footage — the same paleHemp→deepHemp sweep
-            as TriToneBackground, heavily blurred and scaled up well past
-            the video's own box. This is what actually sells the seam: the
-            mask below only has to fade the footage into *this* blurred
-            echo (which already shares its exact hue at every point), not
-            straight into the page, so any residual mismatch dissolves in
-            soft color rather than reading as an edge. */}
-        <div
-          className="pointer-events-none absolute inset-0 -z-10 scale-[1.9]"
-          style={{
-            background: `linear-gradient(90deg, ${colors.paleHemp} 0%, ${colors.deepHemp} 100%)`,
-            filter: "blur(60px)",
-            opacity: 0.9,
-          }}
-          aria-hidden
-        />
+            as TriToneBackground, softened and scaled up well past the
+            video's own box. This is what actually sells the seam: the mask
+            below only has to fade the footage into *this* echo (which
+            already shares its exact hue at every point), not straight into
+            the page, so any residual mismatch dissolves in soft color
+            rather than reading as an edge. The softening used to be a
+            `filter: blur(60px)`; `.hero-glow-echo` now produces the same
+            blurred-rectangle falloff with a static mask (bulgu #10). The
+            ramp spans exactly the original box (120px in from each side of
+            the grown mask box), flat colour beyond — what the blur did. */}
+        <div className="pointer-events-none absolute inset-0 -z-10 scale-[1.9]" style={{ opacity: 0.9 }} aria-hidden>
+          <div
+            className="hero-glow-echo"
+            style={{
+              background: `linear-gradient(90deg, ${colors.paleHemp} 120px, ${colors.deepHemp} calc(100% - 120px))`,
+            }}
+          />
+        </div>
         {/* No card, border, or shadow. `closest-side` is load-bearing here,
             not decorative — it's the only ellipse sizing that *guarantees*
             full transparency is reached before the box's own edge, on any
@@ -119,6 +157,7 @@ export function Section01FirstEncounter() {
             muted
             playsInline
             preload="auto"
+            poster={HERO.poster}
             aria-label={section01.imageAlt}
             className="h-full w-full object-contain"
             style={{
@@ -126,14 +165,14 @@ export function Section01FirstEncounter() {
               WebkitMaskImage: "radial-gradient(ellipse closest-side at 50% 52%, black 70%, transparent 92%)",
             }}
           >
-            {heroVideoReady && <source src="/images/hero-plant-growth.mp4" media="(min-width: 768px)" />}
+            <source src={HERO.desktop} media="(min-width: 768px)" />
           </video>
         </div>
       </div>
 
       <h1
         ref={headingRef}
-        className="relative z-10 max-w-3xl text-center text-3xl leading-tight font-light sm:text-4xl md:text-5xl"
+        className="hero-enter-heading relative z-10 max-w-3xl text-center text-3xl leading-tight font-light sm:text-4xl md:text-5xl"
         style={{ color: colors.charcoal, fontFamily: "var(--font-display)" }}
       >
         {section01.heading}
@@ -141,7 +180,7 @@ export function Section01FirstEncounter() {
 
       <p
         ref={subheadingRef}
-        className="relative z-10 mx-auto mt-5 max-w-md text-center text-sm font-light sm:text-base"
+        className="hero-enter-subheading relative z-10 mx-auto mt-5 max-w-md text-center text-sm font-light sm:text-base"
         style={{ color: colors.deepHemp }}
       >
         {section01.subheading}
@@ -149,7 +188,7 @@ export function Section01FirstEncounter() {
 
       <div
         ref={scrollCueRef}
-        className="absolute bottom-10 left-1/2 z-10 -translate-x-1/2 text-[11px] tracking-[0.3em] uppercase"
+        className="hero-enter-cue absolute bottom-10 left-1/2 z-10 -translate-x-1/2 text-[11px] tracking-[0.3em] uppercase"
         style={{ color: colors.charcoal }}
       >
         {section01.scrollCue}

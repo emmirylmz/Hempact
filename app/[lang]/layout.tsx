@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { display, body } from "@/lib/fonts";
+import { display, displayItalic, body } from "@/lib/fonts";
 import { locales, isLocale, type Locale } from "@/lib/content";
 import { LocaleProvider } from "@/lib/i18n/LocaleContext";
 import { SITE_URL, buildMetadata } from "@/lib/seo";
@@ -41,7 +41,7 @@ export default async function RootLayout({
   if (!isLocale(lang)) notFound();
 
   return (
-    <html lang={lang} className={`${display.variable} ${body.variable} h-full antialiased`}>
+    <html lang={lang} className={`${display.variable} ${displayItalic.variable} ${body.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <LocaleProvider locale={lang}>{children}</LocaleProvider>
       </body>

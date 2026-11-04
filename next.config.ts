@@ -38,6 +38,20 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
       },
+      // Re-encoded videos and their poster frames. Never edited in place:
+      // any change ships under a new file name (v2 → v3 directory or a
+      // renamed file), so browsers may cache them for a year without
+      // revalidating — the old `/images/*` files got `max-age=0` and were
+      // re-validated on every visit/seek. Listed after the catch-all so
+      // only Cache-Control is added; the security headers above still apply.
+      {
+        source: "/images/v2/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/images/posters/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ];
   },
 };

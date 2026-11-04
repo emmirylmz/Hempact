@@ -2,12 +2,14 @@
 
 import { useRef } from "react";
 import Link from "next/link";
-import { useGSAP } from "@gsap/react";
 import { colors } from "@/lib/theme";
-import { gsap, eases } from "@/lib/gsapConfig";
 import { useReducedMotion } from "@/lib/useReducedMotion";
-import { useSceneBackgroundFlow } from "@/lib/useSceneBackgroundFlow";
+import { preloadGsap, useLazyGsap, useLazySceneBackgroundFlow } from "@/lib/lazyGsap";
 import { useContent, useLocale } from "@/lib/i18n/LocaleContext";
+
+// Q8-1: GSAP is loaded on demand (lib/lazyGsap.ts); the request starts as
+// soon as this first-screen module is evaluated.
+preloadGsap();
 
 // The whole /iletisim page is this one section — no "scroll to explore"
 // step, contact info is visible immediately below the fixed header.
@@ -20,11 +22,10 @@ export function ContactSection() {
   const noteRef = useRef<HTMLParagraphElement>(null);
   const ctaRef = useRef<HTMLAnchorElement>(null);
 
-  useSceneBackgroundFlow(containerRef, colors.warmLinen);
+  useLazySceneBackgroundFlow(containerRef, colors.warmLinen);
 
-  useGSAP(
-    () => {
-      if (reducedMotion) return;
+  useLazyGsap(
+    ({ gsap, eases }) => {
       gsap.set([eyebrowRef.current, headingRef.current, listRef.current, noteRef.current, ctaRef.current], {
         opacity: 0,
         y: 20,
@@ -37,7 +38,9 @@ export function ContactSection() {
         .to(noteRef.current, { opacity: 1, y: 0, duration: 0.6, ease: eases.fabric }, "-=0.3")
         .to(ctaRef.current, { opacity: 1, y: 0, duration: 0.5, ease: eases.fabric }, "-=0.3");
     },
-    { scope: containerRef, dependencies: [reducedMotion] }
+    containerRef,
+    [],
+    { enabled: !reducedMotion }
   );
 
   const { iletisim } = useContent();

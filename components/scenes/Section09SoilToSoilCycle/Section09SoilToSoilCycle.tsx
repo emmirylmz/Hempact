@@ -57,12 +57,14 @@ export function Section09SoilToSoilCycle() {
       <div className="relative z-10 flex w-full flex-1 items-center justify-center">
         <div
           className="pointer-events-none absolute h-[40dvh] w-[40dvh] rounded-full md:h-[46dvh] md:w-[46dvh]"
-          style={{
-            background: `radial-gradient(closest-side, ${colors.deepHemp}40, transparent 75%)`,
-            filter: "blur(30px)",
-          }}
           aria-hidden
-        />
+        >
+          {/* Was the same gradient + `filter: blur()`. Now pre-softened:
+              extra stops follow the blurred profile (slightly lower peak,
+              Gaussian tail), on a box grown 25% per side so the tail never
+              meets an edge. Static paint, no per-frame GPU blur (bulgu #10). */}
+          <div className="absolute -inset-[25%]" style={{ background: `radial-gradient(ellipse 33.33% 33.33% at 50% 50%, ${colors.deepHemp}31 0%, ${colors.deepHemp}20 37.5%, ${colors.deepHemp}05 75%, ${colors.deepHemp}01 90%, transparent 104%)` }} />
+        </div>
         <CycleIllustration ref={svgRef} markerRef={markerRef} trailRef={trailRef} stageCount={stageCount} />
 
         {section09.stages.map((stage, index) => {

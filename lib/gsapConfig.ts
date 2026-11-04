@@ -17,18 +17,44 @@ export function registerGsap() {
   // this class of resize at all.
   ScrollTrigger.config({ ignoreMobileResize: true });
 
-  // A safety net for the 9 sections that pin themselves once their own
-  // video's metadata loads (each on its own network-dependent schedule) —
-  // every trigger's start/end is measured against the DOM as it exists at
-  // that moment, and while pin creation itself is synchronous (see
-  // [[mobile_scroll_architecture]]), still-loading fonts/images elsewhere
-  // on the page can keep shifting layout for a bit after that. One
-  // `refresh()` once everything (including media) has actually finished
-  // loading re-measures every trigger against the final, settled layout —
-  // cheap, and standard GSAP guidance for pages with this many pinned,
-  // asynchronously-sized sections.
-  window.addEventListener("load", () => ScrollTrigger.refresh(), { once: true });
+  // Startup refresh budget (bulgu #7): there used to be THREE full
+  // refreshes at startup — SmoothScrollProvider's mount refresh,
+  // ScrollTrigger's own built-in `load` auto-refresh, and a second `load`
+  // listener here — the last two back to back in one ~220 ms task (4x CPU).
+  // Now ScrollTrigger's own DOMContentLoaded/load auto-refreshes are turned
+  // off (resize + visibilitychange stay) and replaced by exactly one
+  // refresh below, so startup costs two: provider mount + settled layout.
+  //
+  // The protection the old listener existed for is kept: every trigger's
+  // start/end is measured against the DOM as it exists when it's created
+  // (pins are created synchronously at mount, see
+  // [[mobile_scroll_architecture]]), and still-loading fonts/images can
+  // keep shifting layout after that — so once the window has loaded AND
+  // web fonts have settled, one forced `refresh()` re-measures every
+  // trigger against the final layout ("pin'ler geç oluşursa kayma").
+  //
+  // `autoRefreshEvents` is only safe to set once ScrollTrigger's core has
+  // initialised (it needs <body>); if it hasn't, the defaults stay and the
+  // worst case is the old behavior (one extra refresh), never a missing one.
+  if (document.body) {
+    ScrollTrigger.config({ autoRefreshEvents: "visibilitychange,resize" });
+  }
+  scheduleSettledRefresh();
   registered = true;
+}
+
+function scheduleSettledRefresh() {
+  const windowLoaded =
+    document.readyState === "complete"
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => window.addEventListener("load", () => resolve(), { once: true }));
+  const fontsReady = document.fonts?.ready.then(() => undefined).catch(() => undefined) ?? Promise.resolve();
+
+  // One rAF after both settle: batches with whatever else the `load`
+  // handlers themselves changed, and keeps this out of the load task.
+  Promise.all([windowLoaded, fontsReady]).then(() => {
+    requestAnimationFrame(() => ScrollTrigger.refresh());
+  });
 }
 
 export const eases = {

@@ -26,7 +26,157 @@ body {
   font-family: var(--font-body), Arial, Helvetica, sans-serif;
 }
 
+/* Fraunces italic lives in its own, non-preloaded next/font instance
+   (lib/fonts.ts, QC4 Q4-3). An element that is `italic` AND sets
+   `font-family: var(--font-display)` itself resolves the variable here, to
+   that italic family, so it renders the same Fraunces italic as before.
+   (The element must set the font-family itself; a family inherited from a
+   parent was already resolved there.) */
+.italic {
+  --font-display: var(--font-display-italic);
+}
+
+/* Mobile scroll runs before their GSAP pin exists (MobileStage.tsx,
+   PRESIZE_ATTR): the spacer already has the pin's total height, the stage's
+   own height (min-h-dvh) plus the pin distance (`--run-pad` = distance in
+   units of 100vh, the measure ScrollTrigger uses for `end: "+=N%"`), and
+   the stage sticks to the top for that whole length, exactly as the pin
+   will hold it. Height, not padding-bottom: a sticky box only moves inside
+   its parent's content box. The effect drops the sticky part (value
+   "sticky" -> "") right before it creates the pin and the height right
+   after, in the same task. Same media query as the spacer's `md:hidden`. */
+@media (max-width: 767.98px) {
+  [data-run-presize] {
+    height: calc(100dvh + 100vh * var(--run-pad, 0));
+  }
+  [data-run-presize="sticky"] > * {
+    position: sticky;
+    top: 0;
+  }
+}
+
 ::selection {
   background: var(--color-soft-clay-rose);
   color: var(--color-charcoal);
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero entrance (Section01 + MobileScene01) — bulgu #8 / #9            */
+/* Same timing table as useSection01Timeline.ts (keep in sync):         */
+/*   image 0–1.2s (scale only), heading 0.5–1.2s (y only) — neither is  */
+/*   ever at opacity:0 (LCP candidates),                                */
+/*   subheading 0.9–1.5s, cue 1.4–2.0s, cue breath from 2.6s.           */
+/* Runs from first paint, before any JS; at hydration the hook hands    */
+/* the remainder to GSAP (`.hero-enter-js`) because GSAP's pin moves    */
+/* the section in the DOM, which would restart these animations.        */
+/* Desktop only: MobileScene01 is never moved (MobileStage's own        */
+/* pin-spacer), so on mobile the CSS runs to the end (mode "css").      */
+/* ------------------------------------------------------------------ */
+:root {
+  /* power3.out / sine.inOut — cubic-bezier approximations ... */
+  --hero-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --hero-ease-breath: cubic-bezier(0.37, 0, 0.63, 1);
+}
+@supports (animation-timing-function: linear(0, 1)) {
+  /* ... and the exact GSAP curves where linear() is supported, so the
+     CSS→GSAP handoff mid-reveal has no visible step. */
+  :root {
+    --hero-ease-out: linear(0, 0.1426, 0.271, 0.3859, 0.488, 0.5781, 0.657, 0.7254, 0.784, 0.8336, 0.875, 0.9089, 0.936, 0.9571, 0.973, 0.9844, 0.992, 0.9966, 0.999, 0.9999, 1);
+    --hero-ease-breath: linear(0, 0.0096, 0.0381, 0.0843, 0.1464, 0.2222, 0.3087, 0.4025, 0.5, 0.5975, 0.6913, 0.7778, 0.8536, 0.9157, 0.9619, 0.9904, 1);
+  }
+}
+
+/* Image box (hero poster = LCP on mobile): scale only, never opacity:0 —
+   docs/mobil.md "LCP öğesi opacity:0 ile başlamaz" (QC3 Q3-5). */
+@keyframes hero-image-in {
+  from { transform: scale(0.95); }
+}
+@keyframes hero-rise-in {
+  from { transform: translateY(10px); }
+}
+@keyframes hero-fade-rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+}
+@keyframes hero-cue-in {
+  from { opacity: 0; }
+}
+/* Two names, same keyframes: the CSS-phase breath and the post-handoff
+   breath must be distinct animations (a renamed list entry is a fresh
+   animation with its own delay, never an ambiguous "continued" one). */
+@keyframes hero-cue-breath {
+  from { opacity: 0.6; }
+  to { opacity: 0.25; }
+}
+@keyframes hero-cue-breath-js {
+  from { opacity: 0.6; }
+  to { opacity: 0.25; }
+}
+
+.hero-enter-image {
+  animation: hero-image-in 1.2s var(--hero-ease-out) both;
+}
+.hero-enter-heading {
+  animation: hero-rise-in 0.7s var(--hero-ease-out) 0.5s both;
+}
+.hero-enter-subheading {
+  animation: hero-fade-rise-in 0.6s var(--hero-ease-out) 0.9s both;
+}
+.hero-enter-cue {
+  opacity: 0.6;
+  animation:
+    hero-cue-in 0.6s var(--hero-ease-out) 1.4s both,
+    hero-cue-breath 1.6s var(--hero-ease-breath) 2.6s infinite alternate;
+}
+
+/* After hydration GSAP owns the (remaining) entrance via inline styles. */
+.hero-enter-js {
+  animation: none;
+}
+.hero-enter-cue.hero-enter-js {
+  animation: hero-cue-breath-js 1.6s var(--hero-ease-breath) var(--hero-breath-delay, 0s) infinite alternate;
+}
+.hero-enter-off,
+.hero-enter-cue.hero-enter-off {
+  animation: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero "glow echo" behind the footage — bulgu #10                      */
+/* Was: the pale→deep sweep with `filter: blur(60px)`. Now: the same    */
+/* sweep, unblurred, on a box grown by 2σ (120px) per side, faded by a  */
+/* separable Gaussian-edge mask (x profile ∩ y profile) — exactly what  */
+/* a blurred rectangle's alpha is (Φ-shaped edges: .16/.5/.84 at        */
+/* −σ/0/+σ around the original edge). A static mask is rasterized once; */
+/* a 60px blur was re-filtered by the GPU.                              */
+/* Usage: <div class="hero-glow-echo" style="background: linear-gradient(90deg, pale 120px, deep calc(100% - 120px))"> */
+/* ------------------------------------------------------------------ */
+.hero-glow-echo {
+  position: absolute;
+  inset: -120px;
+  --echo-x: linear-gradient(90deg, transparent 0, rgb(0 0 0 / 0.16) 60px, rgb(0 0 0 / 0.5) 120px, rgb(0 0 0 / 0.84) 180px, #000 240px, #000 calc(100% - 240px), rgb(0 0 0 / 0.84) calc(100% - 180px), rgb(0 0 0 / 0.5) calc(100% - 120px), rgb(0 0 0 / 0.16) calc(100% - 60px), transparent 100%);
+  --echo-y: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) min(60px, 50%), rgb(0 0 0 / 0.5) min(120px, 50%), rgb(0 0 0 / 0.84) min(180px, 50%), #000 min(240px, 50%), #000 max(calc(100% - 240px), 50%), rgb(0 0 0 / 0.84) max(calc(100% - 180px), 50%), rgb(0 0 0 / 0.5) max(calc(100% - 120px), 50%), rgb(0 0 0 / 0.16) max(calc(100% - 60px), 50%), transparent 100%);
+  -webkit-mask-image: var(--echo-x), var(--echo-y);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--echo-x), var(--echo-y);
+  mask-composite: intersect;
+}
+
+/* ------------------------------------------------------------------ */
+/* TriToneBackground edge falloff — bulgu #10                           */
+/* The sweep used to be `blur(70px)` on a box 15% larger than the       */
+/* section. On desktop that blur never reached the visible area; on     */
+/* phones (15% of 390px = 58px < σ 70px) it let ~20% of the page        */
+/* background show through at the left/right screen edges, fading out   */
+/* within ~100px. This static overlay reproduces exactly that falloff   */
+/* (1 − Φ((x + 0.15·W) / 70px) at W ≈ 390) without any filter. Colour   */
+/* comes from TriToneBackground via --tri-tone-edge.                    */
+/* ------------------------------------------------------------------ */
+.tri-tone-edge {
+  display: none;
+}
+@media (max-width: 767.98px) {
+  .tri-tone-edge {
+    display: block;
+    background: var(--tri-tone-edge);
+  }
 }

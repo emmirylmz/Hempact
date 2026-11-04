@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import { useContent } from "@/lib/i18n/LocaleContext";
 import { colors } from "@/lib/theme";
-import { primeMobileVideo, scrubVideoToProgress } from "@/lib/useMobileVideoScrub";
+import { scrubVideoToProgress } from "@/lib/useMobileVideoScrub";
+import { MOBILE_SOURCE_MEDIA, useMobileSceneMedia, useMobileScrub } from "@/lib/mobileMedia";
 
 // Mobile-only rendering of Section06, hosted inside MobileStageRunA — see
 // MobileScene02.tsx's own comment, same pattern. The desktop mobile branch
@@ -14,19 +15,12 @@ export function MobileScene06({ onProgressRef }: { onProgressRef: RefObject<((lo
   const videoRef = useRef<HTMLVideoElement>(null);
   const { section06 } = useContent();
 
-  useEffect(() => {
-    const videoEl = videoRef.current;
-    if (videoEl) primeMobileVideo(videoEl);
-  }, []);
-
-  // See MobileScene01.tsx's own comment on why this is in an effect.
-  useEffect(() => {
-    onProgressRef.current = (localProgress: number) => {
-      const videoEl = videoRef.current;
-      if (!videoEl) return;
-      scrubVideoToProgress(videoEl, localProgress);
-    };
-  });
+  // Lazy <source>/poster + deferred, sequential iOS priming: see
+  // lib/mobileMedia.ts. The scrub itself is the same scrubVideoToProgress
+  // call as before; useMobileScrub only re-applies the last progress once a
+  // lazily attached video's metadata arrives.
+  const media = useMobileSceneMedia("06", videoRef);
+  useMobileScrub(videoRef, onProgressRef, scrubVideoToProgress);
 
   return (
     // pt-28 + [justify-content:safe_center]: see MobileScene01.tsx's own
@@ -52,7 +46,8 @@ export function MobileScene06({ onProgressRef }: { onProgressRef: RefObject<((lo
             ref={videoRef}
             muted
             playsInline
-            preload="auto"
+            preload={media.preload}
+            poster={media.poster}
             aria-label={section06.heading}
             className="h-full w-full object-cover"
             style={{
@@ -60,7 +55,7 @@ export function MobileScene06({ onProgressRef }: { onProgressRef: RefObject<((lo
               WebkitMaskImage: "radial-gradient(ellipse 62% 62% at 50% 50%, black 45%, transparent 92%)",
             }}
           >
-            <source src="/images/liquid-drop.mp4" media="(max-width: 767.98px)" />
+            {media.attached && <source src={media.src} type="video/mp4" media={MOBILE_SOURCE_MEDIA} />}
           </video>
         </div>
       </div>
